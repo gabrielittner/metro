@@ -175,14 +175,14 @@ internal fun List<FirAnnotation>.isAnnotatedWithAny(
 
 internal inline fun FirMemberDeclaration.checkVisibility(
   allowProtected: Boolean = false,
-  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing
+  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing,
 ) {
   visibility.checkVisibility(source, allowProtected, onError)
 }
 
 internal inline fun FirCallableSymbol<*>.checkVisibility(
   allowProtected: Boolean = false,
-  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing
+  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing,
 ) {
   visibility.checkVisibility(source, allowProtected, onError)
 }
@@ -484,7 +484,12 @@ internal inline fun FirClass.validateInjectedClass(
   }
 
   checkVisibility { source, allowedVisibilities ->
-    reporter.reportOn(source, FirMetroErrors.INJECTED_CLASSES_MUST_BE_VISIBLE, allowedVisibilities, context)
+    reporter.reportOn(
+      source,
+      FirMetroErrors.INJECTED_CLASSES_MUST_BE_VISIBLE,
+      allowedVisibilities,
+      context,
+    )
     onError()
   }
 }
@@ -563,7 +568,13 @@ internal inline fun FirClass.validateApiDeclaration(
   }
 
   checkVisibility { source, allowedVisibilities ->
-    reporter.reportOn(source, FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR, type, allowedVisibilities, context)
+    reporter.reportOn(
+      source,
+      FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR,
+      type,
+      allowedVisibilities,
+      context,
+    )
     onError()
   }
   if (isAbstract && classKind == ClassKind.CLASS) {
@@ -584,7 +595,13 @@ internal inline fun FirConstructorSymbol.validateVisibility(
   onError: () -> Nothing,
 ) {
   checkVisibility { source, allowedVisibilities ->
-    reporter.reportOn(source, FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR, type, allowedVisibilities, context)
+    reporter.reportOn(
+      source,
+      FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR,
+      type,
+      allowedVisibilities,
+      context,
+    )
     onError()
   }
 }

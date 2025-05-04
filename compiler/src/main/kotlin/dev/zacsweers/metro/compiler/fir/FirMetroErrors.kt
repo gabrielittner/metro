@@ -179,10 +179,7 @@ internal object FirMetroErrors : BaseDiagnosticRendererFactory() {
         ONLY_FINAL_AND_OPEN_CLASSES_CAN_BE_INJECTED,
         "Only final and open classes be annotated with @Inject or have @Inject-annotated constructors.",
       )
-      put(
-        INJECTED_CLASSES_MUST_BE_VISIBLE,
-        "Injected classes must be visible, {0}.", STRING,
-      )
+      put(INJECTED_CLASSES_MUST_BE_VISIBLE, "Injected classes must be visible, {0}.", STRING)
       put(ASSISTED_INJECTION_ERROR, "{0}", STRING)
       put(PROVIDES_ERROR, "{0}", STRING)
       put(PROVIDES_WARNING, "{0}", STRING)
