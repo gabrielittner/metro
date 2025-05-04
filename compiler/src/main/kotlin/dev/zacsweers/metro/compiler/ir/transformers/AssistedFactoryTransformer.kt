@@ -12,7 +12,6 @@ import dev.zacsweers.metro.compiler.ir.createIrBuilder
 import dev.zacsweers.metro.compiler.ir.finalizeFakeOverride
 import dev.zacsweers.metro.compiler.ir.irExprBodySafe
 import dev.zacsweers.metro.compiler.ir.irInvoke
-import dev.zacsweers.metro.compiler.ir.isAbstractAndVisible
 import dev.zacsweers.metro.compiler.ir.isAnnotatedWithAny
 import dev.zacsweers.metro.compiler.ir.isExternalParent
 import dev.zacsweers.metro.compiler.ir.parameters.Parameter
@@ -22,7 +21,6 @@ import dev.zacsweers.metro.compiler.ir.rawType
 import dev.zacsweers.metro.compiler.ir.requireSimpleFunction
 import dev.zacsweers.metro.compiler.ir.thisReceiverOrFail
 import dev.zacsweers.metro.compiler.ir.transformers.AssistedFactoryTransformer.AssistedFactoryFunction.Companion.toAssistedFactoryFunction
-import org.jetbrains.kotlin.backend.jvm.ir.isJvmAbstract
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
