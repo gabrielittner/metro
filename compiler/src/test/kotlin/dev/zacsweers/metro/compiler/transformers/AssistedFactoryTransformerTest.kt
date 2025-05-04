@@ -772,6 +772,36 @@ class AssistedFactoryTransformerTest : MetroCompilerTest() {
   }
 
   @Test
+  fun `assisted factory with additional non abstract methods work`() {
+    compile(
+      source(
+        """
+            class ExampleClass @Inject constructor(
+              @Assisted val count: Int,
+              val message: String,
+            ) : Callable<String> {
+              override fun call(): String = message + count
+            }
+
+            @AssistedFactory
+            interface ExampleClassFactory {
+              fun foo(): ExampleClass = create(0)
+              fun bar() {}
+
+              fun create(count: Int): ExampleClass
+            }
+          """
+          .trimIndent()
+      )
+    ) {
+      val exampleClassFactory =
+        ExampleClass.generatedFactoryClassAssisted().invokeCreate(provider { "Hello, " })
+      val exampleClass = exampleClassFactory.callFactoryInvoke<Callable<String>>(2)
+      assertThat(exampleClass.call()).isEqualTo("Hello, 2")
+    }
+  }
+
+  @Test
   fun `assisted factory with protected method works`() {
     compile(
       source(
