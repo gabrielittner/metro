@@ -48,6 +48,7 @@ internal object AssistedInjectChecker : FirClassChecker(MppCheckerKind.Common) {
         context,
         reporter,
         "@AssistedFactory declarations",
+        allowProtected = true,
       ) {
         return
       }

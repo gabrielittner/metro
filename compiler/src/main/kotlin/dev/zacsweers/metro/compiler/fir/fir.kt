@@ -174,20 +174,23 @@ internal fun List<FirAnnotation>.isAnnotatedWithAny(
 }
 
 internal inline fun FirMemberDeclaration.checkVisibility(
-  onError: (source: KtSourceElement?) -> Nothing
+  allowProtected: Boolean = false,
+  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing
 ) {
-  visibility.checkVisibility(source, onError)
+  visibility.checkVisibility(source, allowProtected, onError)
 }
 
 internal inline fun FirCallableSymbol<*>.checkVisibility(
-  onError: (source: KtSourceElement?) -> Nothing
+  allowProtected: Boolean = false,
+  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing
 ) {
-  visibility.checkVisibility(source, onError)
+  visibility.checkVisibility(source, allowProtected, onError)
 }
 
 internal inline fun Visibility.checkVisibility(
   source: KtSourceElement?,
-  onError: (source: KtSourceElement?) -> Nothing,
+  allowProtected: Boolean = false,
+  onError: (source: KtSourceElement?, allowedVisibilities: String) -> Nothing,
 ) {
   // TODO what about expect/actual/protected
   when (this) {
@@ -196,8 +199,13 @@ internal inline fun Visibility.checkVisibility(
       // These are fine
       // TODO what about across modules? Is internal really ok? Or PublishedApi?
     }
+    Visibilities.Protected -> {
+      if (!allowProtected) {
+        onError(source, "public or internal")
+      }
+    }
     else -> {
-      onError(source)
+      onError(source, if (allowProtected) "public, internal or protected" else "public or internal")
     }
   }
 }
@@ -301,6 +309,7 @@ internal inline fun FirClass.singleAbstractFunction(
   context: CheckerContext,
   reporter: DiagnosticReporter,
   type: String,
+  allowProtected: Boolean = false,
   onError: () -> Nothing,
 ): FirNamedFunctionSymbol {
   val abstractFunctions = symbol.abstractFunctions(session)
@@ -329,11 +338,12 @@ internal inline fun FirClass.singleAbstractFunction(
   }
 
   val function = abstractFunctions.single()
-  function.checkVisibility { source ->
+  function.checkVisibility(allowProtected) { source, allowedVisibilities ->
     reporter.reportOn(
       source,
       FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR,
       "$type classes' single abstract functions",
+      allowedVisibilities,
       context,
     )
     onError()
@@ -473,8 +483,8 @@ internal inline fun FirClass.validateInjectedClass(
     }
   }
 
-  checkVisibility { source ->
-    reporter.reportOn(source, FirMetroErrors.INJECTED_CLASSES_MUST_BE_VISIBLE, context)
+  checkVisibility { source, allowedVisibilities ->
+    reporter.reportOn(source, FirMetroErrors.INJECTED_CLASSES_MUST_BE_VISIBLE, allowedVisibilities, context)
     onError()
   }
 }
@@ -552,8 +562,8 @@ internal inline fun FirClass.validateApiDeclaration(
     }
   }
 
-  checkVisibility { source ->
-    reporter.reportOn(source, FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR, type, context)
+  checkVisibility { source, allowedVisibilities ->
+    reporter.reportOn(source, FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR, type, allowedVisibilities, context)
     onError()
   }
   if (isAbstract && classKind == ClassKind.CLASS) {
@@ -573,8 +583,8 @@ internal inline fun FirConstructorSymbol.validateVisibility(
   type: String,
   onError: () -> Nothing,
 ) {
-  checkVisibility { source ->
-    reporter.reportOn(source, FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR, type, context)
+  checkVisibility { source, allowedVisibilities ->
+    reporter.reportOn(source, FirMetroErrors.METRO_DECLARATION_VISIBILITY_ERROR, type, allowedVisibilities, context)
     onError()
   }
 }
