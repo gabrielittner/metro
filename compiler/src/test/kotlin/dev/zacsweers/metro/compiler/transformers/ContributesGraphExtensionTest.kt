@@ -1052,7 +1052,7 @@ class ContributesGraphExtensionTest : MetroCompilerTest() {
           @DependencyGraph(scope = AppScope::class, isExtendable = true)
           interface ExampleGraph
         """
-           .trimIndent()
+          .trimIndent()
       )
     )
   }
