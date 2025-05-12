@@ -1673,6 +1673,84 @@ class DependencyGraphTransformerTest : MetroCompilerTest() {
     assertThat(strings).containsExactly("0", "1", "3")
   }
 
+  @Test
+  fun `single module with contributed multibinding as elements used in constructor injection`() {
+    compile(
+      source(
+        """
+          abstract class LoggedInScope
+          interface ContributedInterface
+          class Impl1 : ContributedInterface
+
+          @ContributesTo(AppScope::class)
+          interface MultibindingsModule {
+
+            @Provides
+            @ElementsIntoSet
+            fun provideImpl1(): Set<ContributedInterface> = setOf(Impl1())
+          }
+
+          class MultibindingConsumer @Inject constructor(val contributions: Set<ContributedInterface>)
+
+          @DependencyGraph(scope = AppScope::class, isExtendable = true)
+          interface ExampleGraph {
+            val multibindingConsumer: MultibindingConsumer
+          }
+        """
+          .trimIndent()
+      )
+    ) {
+      assertThat(exitCode).isEqualTo(ExitCode.OK)
+      val exampleGraph = ExampleGraph.generatedMetroGraphClass().createGraphWithNoArgs()
+      assertThat(
+          exampleGraph
+            .callProperty<Any>("multibindingConsumer")
+            .callProperty<Set<Any>>("contributions")
+            .map { it.javaClass.canonicalName }
+        )
+        .isEqualTo(listOf("test.Impl1"))
+    }
+  }
+
+  @Test
+  fun `single module with contributed multibinding used in constructor injection`() {
+    compile(
+      source(
+        """
+          abstract class LoggedInScope
+          interface ContributedInterface
+          class Impl1 : ContributedInterface
+
+          @ContributesTo(AppScope::class)
+          interface MultibindingsModule {
+
+            @Provides
+            @IntoSet
+            fun provideImpl1(): ContributedInterface = Impl1()
+          }
+
+          class MultibindingConsumer @Inject constructor(val contributions: Set<ContributedInterface>)
+
+          @DependencyGraph(scope = AppScope::class, isExtendable = true)
+          interface ExampleGraph {
+            val multibindingConsumer: MultibindingConsumer
+          }
+        """
+          .trimIndent()
+      )
+    ) {
+      assertThat(exitCode).isEqualTo(ExitCode.OK)
+      val exampleGraph = ExampleGraph.generatedMetroGraphClass().createGraphWithNoArgs()
+      assertThat(
+          exampleGraph
+            .callProperty<Any>("multibindingConsumer")
+            .callProperty<Set<Any>>("contributions")
+            .map { it.javaClass.canonicalName }
+        )
+        .isEqualTo(listOf("test.Impl1"))
+    }
+  }
+
   // The annotation is stored on the FirPropertyAccessorSymbol, this test ensures
   // we check there too
   @Test
@@ -1771,6 +1849,41 @@ class DependencyGraphTransformerTest : MetroCompilerTest() {
     ) {
       val graph = ExampleGraph.generatedMetroGraphClass().createGraphWithNoArgs()
       assertNotNull(graph.callProperty<Any>("exampleClass"))
+    }
+  }
+
+  @Test
+  fun `a multibinding can be declared with @Multibinds and contributed to using @ElementsIntoSet`() {
+    compile(
+      source(
+        """
+            interface MultiboundType
+
+            @Inject
+            class MultiImpl : MultiboundType
+
+            @ContributesTo(AppScope::class)
+            interface MultibindingsModule {
+              @Provides @ElementsIntoSet
+              fun provideMulti(impl: MultiImpl): Set<@JvmSuppressWildcards MultiboundType> = setOf(impl)
+            }
+
+            @ContributesTo(AppScope::class)
+            interface MultibindingsModule2 {
+              @Multibinds(allowEmpty = true)
+              fun provideMulti(): Set<@JvmSuppressWildcards MultiboundType>
+            }
+
+            @DependencyGraph(AppScope::class)
+            interface ExampleGraph {
+              val multi: Set<MultiboundType>
+            }
+          """
+          .trimIndent()
+      )
+    ) {
+      val graph = ExampleGraph.generatedMetroGraphClass().createGraphWithNoArgs()
+      assertNotNull(graph.callProperty<Any>("multi"))
     }
   }
 
