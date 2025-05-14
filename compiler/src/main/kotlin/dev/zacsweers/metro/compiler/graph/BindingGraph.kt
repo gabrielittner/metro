@@ -10,8 +10,8 @@ import dev.zacsweers.metro.compiler.tracing.traceNested
 
 internal interface BindingGraph<
   Type : Any,
-  TypeKey : BaseTypeKey<Type, *, *>,
-  ContextualTypeKey : BaseContextualTypeKey<Type, TypeKey, *>,
+  TypeKey : BaseTypeKey<Type, *, TypeKey>,
+  ContextualTypeKey : BaseContextualTypeKey<Type, TypeKey, ContextualTypeKey>,
   Binding : BaseBinding<Type, TypeKey, ContextualTypeKey>,
   BindingStackEntry : BaseBindingStack.BaseEntry<Type, TypeKey, ContextualTypeKey>,
   BindingStack : BaseBindingStack<*, Type, TypeKey, BindingStackEntry>,
@@ -27,8 +27,8 @@ internal interface BindingGraph<
 
 internal open class MutableBindingGraph<
   Type : Any,
-  TypeKey : BaseTypeKey<Type, *, *>,
-  ContextualTypeKey : BaseContextualTypeKey<Type, TypeKey, *>,
+  TypeKey : BaseTypeKey<Type, *, TypeKey>,
+  ContextualTypeKey : BaseContextualTypeKey<Type, TypeKey, ContextualTypeKey>,
   Binding : BaseBinding<Type, TypeKey, ContextualTypeKey>,
   BindingStackEntry : BaseBindingStack.BaseEntry<Type, TypeKey, ContextualTypeKey>,
   BindingStack : BaseBindingStack<*, Type, TypeKey, BindingStackEntry>,
@@ -180,8 +180,8 @@ internal open class MutableBindingGraph<
           onCycle = { cycle ->
             val fullCycle =
               buildList {
-                  add(cycle.last())
                   addAll(cycle)
+                  add(cycle.first())
                 }
                 // Reverse upfront so we can backward look at dependency requests
                 .reversed()
@@ -191,14 +191,13 @@ internal open class MutableBindingGraph<
                 .mapIndexed { i, key ->
                   val callingBinding =
                     if (i == 0) {
-                      // This is the first index, must be an entry-point instead (i.e. "requested
-                      // by")
-                      null
+                      // This is the first index, back around to the back
+                      bindings.getValue(fullCycle[fullCycle.lastIndex - 1])
                     } else {
                       bindings.getValue(fullCycle[i - 1])
                     }
                   stack.newBindingStackEntry(
-                    callingBinding?.dependencies?.firstOrNull { it.typeKey == key }
+                    callingBinding.dependencies.firstOrNull { it.typeKey == key }
                       ?: bindings.getValue(key).contextualTypeKey,
                     callingBinding,
                     roots,
@@ -234,15 +233,22 @@ internal open class MutableBindingGraph<
         }
       }
 
+      val entriesToReport =
+        if (fullCycle.size == 2) {
+          fullCycle.take(1)
+        } else {
+          fullCycle
+        }
+
       appendLine()
       appendLine()
       // Print the full stack
       appendLine("Trace:")
       appendBindingStackEntries(
         stack.graphFqName,
-        fullCycle,
+        entriesToReport,
         indent = indent,
-        ellipse = fullCycle.size > 1,
+        ellipse = entriesToReport.size > 1,
         short = false,
       )
     }
