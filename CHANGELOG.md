@@ -5,6 +5,7 @@ Changelog
 --------------
 
 - **Fix**: Fix generic members inherited from generic supertypes of contributed graphs.
+- **Fix**: Fix ContributedGraphExtension that extends the same interface as the parent causes a duplicate binding error.
 
 0.3.1
 -----
