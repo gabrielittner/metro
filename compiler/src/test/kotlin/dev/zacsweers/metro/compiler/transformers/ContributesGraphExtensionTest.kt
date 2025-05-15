@@ -1249,20 +1249,80 @@ class ContributesGraphExtensionTest : MetroCompilerTest() {
     compile(
       source(
         """
-          abstract class Parent
+          abstract class ChildScope
 
           interface Test
 
-          @ContributesGraphExtension(Parent::class, isExtendable = true)
-          interface ParentGraph : Test {
+          @ContributesGraphExtension(ChildScope::class, isExtendable = true)
+          interface ChildGraph : Test {
             @ContributesGraphExtension.Factory(AppScope::class)
             interface Factory {
-              fun create(): ParentGraph
+              fun create(): ChildGraph
             }
           }
 
           @DependencyGraph(scope = AppScope::class, isExtendable = true)
           interface ExampleGraph : Test
+        """
+          .trimIndent()
+      )
+    )
+  }
+
+  @Test
+  fun `graph extends interface - bound in child`() {
+    compile(
+      source(
+        """
+          abstract class ChildScope
+
+          interface Test
+
+          @ContributesGraphExtension(ChildScope::class, isExtendable = true)
+          interface ChildGraph : Test {
+            
+            val test: Test
+            @Binds val ChildGraph.bind: Test
+            
+            @ContributesGraphExtension.Factory(AppScope::class)
+            interface Factory {
+              fun create(): ChildGraph
+            }
+          }
+
+          @DependencyGraph(scope = AppScope::class, isExtendable = true)
+          interface ExampleGraph : Test {
+          }
+        """
+          .trimIndent()
+      )
+    )
+  }
+
+  @Test
+  fun `graph extends interface - bound in parent`() {
+    compile(
+      source(
+        """
+          abstract class Parent
+
+          interface Test
+
+          @ContributesGraphExtension(Parent::class, isExtendable = true)
+          interface ChildGraph : Test {
+            
+            val test: Test
+            
+            @ContributesGraphExtension.Factory(AppScope::class)
+            interface Factory {
+              fun create(): ChildGraph
+            }
+          }
+
+          @DependencyGraph(scope = AppScope::class, isExtendable = true)
+          interface ExampleGraph : Test {
+            @Binds val ExampleGraph.bind: Test
+          }
         """
           .trimIndent()
       )
