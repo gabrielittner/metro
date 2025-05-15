@@ -10,12 +10,8 @@ import dev.zacsweers.metro.compiler.decapitalizeUS
 import dev.zacsweers.metro.compiler.exitProcessing
 import org.jetbrains.kotlin.backend.jvm.codegen.AnnotationCodegen.Companion.annotationClass
 import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
-import org.jetbrains.kotlin.ir.builders.declarations.addFunction
-import org.jetbrains.kotlin.ir.builders.declarations.addGetter
-import org.jetbrains.kotlin.ir.builders.declarations.addProperty
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildClass
 import org.jetbrains.kotlin.ir.builders.irBlockBody
@@ -29,13 +25,11 @@ import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.util.addChild
+import org.jetbrains.kotlin.ir.util.addFakeOverrides
 import org.jetbrains.kotlin.ir.util.copyAnnotationsFrom
-import org.jetbrains.kotlin.ir.util.copyParametersFrom
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
-import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
-import org.jetbrains.kotlin.ir.util.isPropertyAccessor
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.superClass
@@ -174,9 +168,10 @@ internal class IrContributedGraphGenerator(
         it.scopeOrNull() ?: error("No scope found for ${sourceGraph.name}: ${it.dumpKotlinLike()}")
       }
     contributedGraph.superTypes += contributionData[scope]
-    contributedGraph.addFakeOverrides()
 
     parentGraph.addChild(contributedGraph)
+
+    contributedGraph.addFakeOverrides(irTypeSystemContext)
 
     return contributedGraph
   }
@@ -199,68 +194,6 @@ internal class IrContributedGraphGenerator(
         parentClass.symbol,
         returnType,
       )
-    }
-  }
-
-  private fun IrClass.addFakeOverrides() {
-    // Iterate all abstract functions/properties from supertypes and add fake overrides of them here
-    // TODO need to merge colliding overrides
-    val abstractMembers =
-      getAllSuperTypes(metroContext.pluginContext, excludeSelf = true, excludeAny = true)
-        .asSequence()
-        .flatMap {
-          it
-            .rawType()
-            .allCallableMembers(
-              metroContext,
-              excludeInheritedMembers = true,
-              excludeCompanionObjectMembers = true,
-              // For interfaces do we need to just check if the parent is an interface?
-              propertyFilter = { it.modality == Modality.ABSTRACT },
-              functionFilter = { it.modality == Modality.ABSTRACT },
-            )
-        }
-        .map { it.ir }
-        .distinctBy { it.computeJvmDescriptorIsh(metroContext) }
-    for (getter in abstractMembers) {
-      if (getter.isPropertyAccessor) {
-        // Stub the property declaration + getter
-        val property = getter.correspondingPropertySymbol!!.owner
-        addProperty {
-            name = property.name
-            updateFrom(property)
-            isFakeOverride = true
-          }
-          .apply {
-            overriddenSymbols += property.symbol
-            copyAnnotationsFrom(property)
-            addGetter {
-                name = getter.name
-                visibility = getter.visibility
-                origin = Origins.Default
-                isFakeOverride = true
-                returnType = getter.returnType
-              }
-              .apply {
-                overriddenSymbols += getter.symbol
-                copyAnnotationsFrom(getter)
-                extensionReceiverParameter =
-                  getter.extensionReceiverParameter?.deepCopyWithSymbols(this)
-              }
-          }
-      } else {
-        addFunction {
-            name = getter.name
-            updateFrom(getter)
-            isFakeOverride = true
-            returnType = getter.returnType
-          }
-          .apply {
-            overriddenSymbols += getter.symbol
-            copyParametersFrom(getter)
-            copyAnnotationsFrom(getter)
-          }
-      }
     }
   }
 }
