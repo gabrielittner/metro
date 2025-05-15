@@ -1023,7 +1023,13 @@ internal class DependencyGraphTransformer(
       if (superTypeKey !in graph) {
         graph.addBinding(
           superTypeKey,
-          Binding.Alias(superTypeKey, aliasedType, null, Parameters.empty(), MetroAnnotations.none()),
+          Binding.Alias(
+            superTypeKey,
+            aliasedType,
+            null,
+            Parameters.empty(),
+            MetroAnnotations.none(),
+          ),
           bindingStack,
         )
       }

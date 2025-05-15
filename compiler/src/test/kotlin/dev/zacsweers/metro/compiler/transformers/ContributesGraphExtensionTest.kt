@@ -1280,10 +1280,10 @@ class ContributesGraphExtensionTest : MetroCompilerTest() {
 
           @ContributesGraphExtension(ChildScope::class, isExtendable = true)
           interface ChildGraph : Test {
-            
+
             val test: Test
             @Binds val ChildGraph.bind: Test
-            
+
             @ContributesGraphExtension.Factory(AppScope::class)
             interface Factory {
               fun create(): ChildGraph
@@ -1310,9 +1310,9 @@ class ContributesGraphExtensionTest : MetroCompilerTest() {
 
           @ContributesGraphExtension(Parent::class, isExtendable = true)
           interface ChildGraph : Test {
-            
+
             val test: Test
-            
+
             @ContributesGraphExtension.Factory(AppScope::class)
             interface Factory {
               fun create(): ChildGraph
