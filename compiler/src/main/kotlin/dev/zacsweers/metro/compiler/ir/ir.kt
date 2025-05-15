@@ -11,6 +11,7 @@ import dev.zacsweers.metro.compiler.ir.parameters.wrapInLazy
 import dev.zacsweers.metro.compiler.ir.parameters.wrapInProvider
 import dev.zacsweers.metro.compiler.letIf
 import dev.zacsweers.metro.compiler.metroAnnotations
+import dev.zacsweers.metro.compiler.singleOrError
 import java.io.File
 import java.util.Objects
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
@@ -64,7 +65,11 @@ import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrGetEnumValueImpl
+import org.jetbrains.kotlin.ir.expressions.impl.fromSymbolOwner
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
@@ -93,6 +98,7 @@ import org.jetbrains.kotlin.ir.util.getValueArgument
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isFakeOverriddenFromAny
 import org.jetbrains.kotlin.ir.util.isObject
+import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nestedClasses
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.properties
@@ -129,9 +135,12 @@ internal fun IrElement?.locationIn(file: IrFile): CompilerMessageSourceLocation 
 internal fun CompilerMessageSourceLocation.render(): String? {
   return buildString {
     val fileUri = File(path).toPath().toUri()
-    append("$fileUri")
+    append(fileUri)
     if (line > 0 && column > 0) {
-      append(":$line:$column")
+      append(':')
+      append(line)
+      append(':')
+      append(column)
     } else {
       // No line or column numbers makes this kind of useless so return null
       return null
@@ -590,7 +599,21 @@ internal fun IrClass.allFunctions(pluginContext: IrPluginContext): Sequence<IrSi
 }
 
 internal fun IrClass.singleAbstractFunction(context: IrMetroContext): IrSimpleFunction {
-  return abstractFunctions(context).single()
+  return abstractFunctions(context).singleOrError {
+    buildString {
+      append("Required a single abstract function for ")
+      append(kotlinFqName)
+      appendLine(" but found multiple:")
+      append(
+        joinTo(this, "\n") { function ->
+          "- " +
+            function.kotlinFqName.asString() +
+            "\n  - " +
+            function.computeJvmDescriptorIsh(context, includeReturnType = false)
+        }
+      )
+    }
+  }
 }
 
 internal fun IrSimpleFunction.isAbstractAndVisible(): Boolean {
@@ -649,6 +672,14 @@ internal fun IrConstructorCall.getSingleConstBooleanArgumentOrNull(): Boolean? {
 
 internal fun IrConstructorCall.getConstBooleanArgumentOrNull(name: Name): Boolean? =
   (getValueArgument(name) as IrConst?)?.value as Boolean?
+
+internal fun IrConstructorCall.replacesArgument() =
+  getValueArgument(Symbols.Names.replaces)?.expectAsOrNull<IrVararg>()
+
+internal fun IrConstructorCall.replacedClasses(): Set<IrClassReference> {
+  return replacesArgument()?.elements?.expectAsOrNull<List<IrClassReference>>()?.toSet()
+    ?: return emptySet()
+}
 
 internal fun IrConstructorCall.scopeOrNull(): ClassId? {
   return scopeClassOrNull()?.classIdOrFail
@@ -741,8 +772,12 @@ internal fun IrClassSymbol.requireSimpleFunction(name: String) =
     )
 
 internal fun IrClass.requireNestedClass(name: Name): IrClass {
-  return nestedClasses.firstOrNull { it.name == name }
+  return nestedClassOrNull(name)
     ?: error("No nested class $name in $classId. Found ${nestedClasses.map { it.name }}")
+}
+
+internal fun IrClass.nestedClassOrNull(name: Name): IrClass? {
+  return nestedClasses.firstOrNull { it.name == name }
 }
 
 internal fun <T : IrOverridableDeclaration<*>> T.resolveOverriddenTypeIfAny(): T {
@@ -812,10 +847,40 @@ internal fun IrPluginContext.buildAnnotation(
   }
 }
 
-internal val IrClass.metroGraph: IrClass
+internal val IrClass.metroGraphOrFail: IrClass
+  get() = metroGraphOrNull ?: error("No generated MetroGraph for $classId")
+
+internal val IrClass.metroGraphOrNull: IrClass?
   get() =
     if (origin === Origins.ContributedGraph) {
       this
     } else {
-      requireNestedClass(Symbols.Names.MetroGraph)
+      nestedClassOrNull(Symbols.Names.MetroGraph)
     }
+
+// Adapted from compose-compiler
+// https://github.com/JetBrains/kotlin/blob/d36a97bb4b935c719c44b76dc8de952579404f91/plugins/compose/compiler-hosted/src/main/java/androidx/compose/compiler/plugins/kotlin/lower/AbstractComposeLowering.kt#L1608
+internal fun IrMetroContext.hiddenDeprecated(
+  message: String = "This synthesized declaration should not be used directly"
+): IrConstructorCall {
+  return IrConstructorCallImpl.fromSymbolOwner(
+      type = symbols.deprecated.defaultType,
+      constructorSymbol = metroContext.symbols.deprecatedAnnotationConstructor,
+    )
+    .also {
+      it.arguments[0] =
+        IrConstImpl.string(
+          SYNTHETIC_OFFSET,
+          SYNTHETIC_OFFSET,
+          pluginContext.irBuiltIns.stringType,
+          message,
+        )
+      it.arguments[2] =
+        IrGetEnumValueImpl(
+          SYNTHETIC_OFFSET,
+          SYNTHETIC_OFFSET,
+          symbols.deprecationLevel.defaultType,
+          symbols.hiddenDeprecationLevel,
+        )
+    }
+}

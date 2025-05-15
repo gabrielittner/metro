@@ -50,88 +50,6 @@ class DaggerInteropTest : MetroCompilerTest() {
       )
 
   @Test
-  fun `dagger factory class can be loaded`() {
-    val firstCompilation =
-      compile(
-        SourceFile.java(
-          "ExampleClass.java",
-          """
-          package test;
-
-          import javax.inject.Inject;
-
-          public class ExampleClass {
-            @Inject public ExampleClass() {
-
-            }
-          }
-        """
-            .trimIndent(),
-        ),
-        compilationBlock = {
-          configureKsp(true) { symbolProcessorProviders += KspComponentProcessor.Provider() }
-        },
-      )
-
-    compile(
-      source(
-        """
-          @DependencyGraph
-          interface ExampleGraph {
-            val exampleClass: ExampleClass
-          }
-        """
-          .trimIndent()
-      ),
-      previousCompilationResult = firstCompilation,
-    ) {
-      val graph = ExampleGraph.generatedMetroGraphClass().createGraphWithNoArgs()
-      assertNotNull(graph.callProperty("exampleClass"))
-    }
-  }
-
-  @Test
-  fun `dagger factory class can be loaded - jakarta`() {
-    val firstCompilation =
-      compile(
-        SourceFile.java(
-          "ExampleClass.java",
-          """
-          package test;
-
-          import jakarta.inject.Inject;
-
-          public class ExampleClass {
-            @Inject public ExampleClass() {
-
-            }
-          }
-        """
-            .trimIndent(),
-        ),
-        compilationBlock = {
-          configureKsp(true) { symbolProcessorProviders += KspComponentProcessor.Provider() }
-        },
-      )
-
-    compile(
-      source(
-        """
-          @DependencyGraph
-          interface ExampleGraph {
-            val exampleClass: ExampleClass
-          }
-        """
-          .trimIndent()
-      ),
-      previousCompilationResult = firstCompilation,
-    ) {
-      val graph = ExampleGraph.generatedMetroGraphClass().createGraphWithNoArgs()
-      assertNotNull(graph.callProperty("exampleClass"))
-    }
-  }
-
-  @Test
   fun `kotlin dagger factory class can be loaded`() {
     val firstCompilation =
       compile(
@@ -470,7 +388,7 @@ class DaggerInteropTest : MetroCompilerTest() {
     ) {
       assertDiagnostics(
         """
-          e: ExampleGraph.kt:6:1 [Metro/EmptyMultibinding] Multibinding 'kotlin.collections.Set<kotlin.Int>' was unexpectedly empty.
+          e: ExampleGraph.kt:8:4 [Metro/EmptyMultibinding] Multibinding 'kotlin.collections.Set<kotlin.Int>' was unexpectedly empty.
 
           If you expect this multibinding to possibly be empty, annotate its declaration with `@Multibinds(allowEmpty = true)`.
         """

@@ -60,12 +60,13 @@ abstract class MetroCompilerTest {
     previousCompilationResult: JvmCompilationResult? = null,
     compilationName: String = "compilation${compilationCount++}",
   ): KotlinCompilation {
+    val finalOptions = options.copy(debug = debug || options.debug)
     return KotlinCompilation().apply {
       workingDir = temporaryFolder.newFolder(compilationName)
       compilerPluginRegistrars = listOf(MetroCompilerPluginRegistrar())
       val processor = MetroCommandLineProcessor()
       commandLineProcessors = listOf(processor)
-      pluginOptions = options.toPluginOptions(processor)
+      pluginOptions = finalOptions.toPluginOptions(processor)
       inheritClassPath = true
       sources = sourceFiles.asList()
       verbose = false
@@ -73,6 +74,7 @@ abstract class MetroCompilerTest {
       // TODO this is needed until/unless we implement JVM reflection support for DefaultImpls
       //  invocations
       kotlincArguments += "-Xjvm-default=all"
+      kotlincArguments += listOf("-Xverify-ir=error", "-Xverify-ir-visibility")
 
       // TODO test enabling IC?
       //  kotlincArguments += "-Xenable-incremental-compilation"
