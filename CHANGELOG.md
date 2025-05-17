@@ -4,6 +4,11 @@ Changelog
 **Unreleased**
 --------------
 
+0.3.2
+-----
+
+_2025-05-15_
+
 - **Enhancement**: Optimize supertype lookups in IR.
 - **Fix**: Fix generic members inherited from generic supertypes of contributed graphs.
 - **Fix**: Fix `@ContributedGraphExtension` that extends the same interface as the parent causes a duplicate binding error.
@@ -11,6 +16,8 @@ Changelog
 - **Fix**: Fix contributed providers not being visible to N+2+ descendant graphs.
 - **Fix**: Collect bindings from member injectors as well as exposed accessors when determining scoped provider fields.
 - **Fix**: Fix a few `-Xverify-ir` and `-Xverify-ir-visibility` issues + run all tests with these enabled now.
+
+Special thanks to [@bnorm](https://github.com/bnorm), [@gabrielittner](https://github.com/gabrielittner), [@kevinguitar](https://github.com/kevinguitar), and [@JoelWilcox](https://github.com/JoelWilcox) for contributing to this release!
 
 0.3.1
 -----
