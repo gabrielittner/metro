@@ -11,10 +11,11 @@ import dev.zacsweers.metro.compiler.ir.IrMetroContext
 import dev.zacsweers.metro.compiler.ir.IrTypeKey
 import dev.zacsweers.metro.compiler.ir.asContextualTypeKey
 import dev.zacsweers.metro.compiler.ir.locationOrNull
-import dev.zacsweers.metro.compiler.ir.parameters.Parameter.Kind
+import dev.zacsweers.metro.compiler.ir.regularParameters
 import dev.zacsweers.metro.compiler.unsafeLazy
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.types.IrType
@@ -23,7 +24,7 @@ import org.jetbrains.kotlin.name.Name
 
 @Poko
 internal class MembersInjectParameter(
-  override val kind: Kind,
+  override val kind: IrParameterKind,
   override val name: Name,
   override val contextualTypeKey: IrContextualTypeKey,
   override val hasDefault: Boolean,
@@ -73,7 +74,7 @@ internal fun List<IrValueParameter>.mapToMemberInjectParameters(
     valueParameter.toMemberInjectParameter(
       context = context,
       uniqueName = nameAllocator.newName(valueParameter.name.asString()).asName(),
-      kind = Kind.VALUE,
+      kind = IrParameterKind.Regular,
       typeParameterRemapper = typeParameterRemapper,
     )
   }
@@ -82,13 +83,13 @@ internal fun List<IrValueParameter>.mapToMemberInjectParameters(
 internal fun IrProperty.toMemberInjectParameter(
   context: IrMetroContext,
   uniqueName: Name,
-  kind: Kind = Kind.VALUE,
+  kind: IrParameterKind = IrParameterKind.Regular,
   typeParameterRemapper: ((IrType) -> IrType)? = null,
 ): MembersInjectParameter {
   val propertyType =
     getter?.returnType ?: backingField?.type ?: error("No getter or backing field!")
 
-  val setterParam = setter?.valueParameters?.singleOrNull()
+  val setterParam = setter?.regularParameters?.singleOrNull()
 
   // Remap type parameters in underlying types to the new target container. This is important for
   // type mangling
@@ -128,7 +129,7 @@ internal fun IrProperty.toMemberInjectParameter(
 internal fun IrValueParameter.toMemberInjectParameter(
   context: IrMetroContext,
   uniqueName: Name,
-  kind: Kind = Kind.VALUE,
+  kind: IrParameterKind = IrParameterKind.Regular,
   typeParameterRemapper: ((IrType) -> IrType)? = null,
 ): MembersInjectParameter {
   // Remap type parameters in underlying types to the new target container. This is important for

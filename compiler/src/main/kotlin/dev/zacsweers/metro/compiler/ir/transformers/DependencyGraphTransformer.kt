@@ -33,11 +33,13 @@ import dev.zacsweers.metro.compiler.ir.asContextualTypeKey
 import dev.zacsweers.metro.compiler.ir.buildBlockBody
 import dev.zacsweers.metro.compiler.ir.createIrBuilder
 import dev.zacsweers.metro.compiler.ir.doubleCheck
+import dev.zacsweers.metro.compiler.ir.extensionReceiverParameterCompat
 import dev.zacsweers.metro.compiler.ir.finalizeFakeOverride
 import dev.zacsweers.metro.compiler.ir.getAllSuperTypes
 import dev.zacsweers.metro.compiler.ir.getConstBooleanArgumentOrNull
 import dev.zacsweers.metro.compiler.ir.getSingleConstBooleanArgumentOrNull
 import dev.zacsweers.metro.compiler.ir.hiddenDeprecated
+import dev.zacsweers.metro.compiler.ir.irCallConstructorWithSameParameters
 import dev.zacsweers.metro.compiler.ir.irExprBodySafe
 import dev.zacsweers.metro.compiler.ir.irInvoke
 import dev.zacsweers.metro.compiler.ir.irLambda
@@ -55,6 +57,7 @@ import dev.zacsweers.metro.compiler.ir.parameters.parameters
 import dev.zacsweers.metro.compiler.ir.parameters.wrapInProvider
 import dev.zacsweers.metro.compiler.ir.rawType
 import dev.zacsweers.metro.compiler.ir.rawTypeOrNull
+import dev.zacsweers.metro.compiler.ir.regularParameters
 import dev.zacsweers.metro.compiler.ir.requireNestedClass
 import dev.zacsweers.metro.compiler.ir.requireSimpleFunction
 import dev.zacsweers.metro.compiler.ir.shouldUnwrapMapKeyValues
@@ -306,7 +309,7 @@ internal class DependencyGraphTransformer(
       accessors +=
         accessorsToCheck
           .filterNot {
-            it.ir.valueParameters.isNotEmpty() ||
+            it.ir.regularParameters.isNotEmpty() ||
               it.annotations.isBinds ||
               it.annotations.isProvides ||
               it.annotations.isMultibinds
@@ -480,7 +483,7 @@ internal class DependencyGraphTransformer(
 
           val isInjector =
             !isContributedGraph &&
-              declaration.valueParameters.size == 1 &&
+              declaration.regularParameters.size == 1 &&
               !annotations.isBinds &&
               declaration.returnType.isUnit()
           if (isContributedGraph) {
@@ -492,7 +495,9 @@ internal class DependencyGraphTransformer(
             val metroFunction = metroFunctionOf(declaration, annotations)
             // key is the injected type wrapped in MembersInjector
             val typeKey =
-              IrTypeKey(symbols.metroMembersInjector.typeWith(declaration.valueParameters[0].type))
+              IrTypeKey(
+                symbols.metroMembersInjector.typeWith(declaration.regularParameters[0].type)
+              )
             injectors += (metroFunction to typeKey)
           } else {
             // Accessor or binds
@@ -551,7 +556,7 @@ internal class DependencyGraphTransformer(
       val scope =
         dependencyGraphAnno.getValueArgument(Symbols.Names.scope)?.let { scopeArg ->
           pluginContext.createIrBuilder(graphDeclaration.symbol).run {
-            irCall(symbols.metroSingleInConstructor).apply { putValueArgument(0, scopeArg) }
+            irCall(symbols.metroSingleInConstructor).apply { arguments[0] = scopeArg }
           }
         }
 
@@ -566,7 +571,7 @@ internal class DependencyGraphTransformer(
             val newAnno =
               pluginContext.createIrBuilder(graphDeclaration.symbol).run {
                 irCall(symbols.metroSingleInConstructor).apply {
-                  putValueArgument(0, scopeClassExpression)
+                  arguments[0] = scopeClassExpression
                 }
               }
             add(IrAnnotation(newAnno))
@@ -635,7 +640,7 @@ internal class DependencyGraphTransformer(
     val includedGraphNodes = mutableMapOf<IrTypeKey, DependencyGraphNode>()
     creator
       ?.parameters
-      ?.valueParameters
+      ?.regularParameters
       .orEmpty()
       .filter { it.isIncludes || it.isExtends }
       .forEach {
@@ -1005,7 +1010,7 @@ internal class DependencyGraphTransformer(
       graph.addBinding(binding.typeKey, binding, bindingStack)
     }
 
-    node.creator?.parameters?.valueParameters.orEmpty().forEach { creatorParam ->
+    node.creator?.parameters?.regularParameters.orEmpty().forEach { creatorParam ->
       // Only expose the binding if it's a bound instance or extended graph. Included containers are
       // not directly available
       if (creatorParam.isBindsInstance || creatorParam.isExtends) {
@@ -1209,7 +1214,7 @@ internal class DependencyGraphTransformer(
 
       graph.addInjector(typeKey, entry)
       bindingStack.withEntry(entry) {
-        val targetClass = injector.ir.valueParameters.single().type.rawType()
+        val targetClass = injector.ir.regularParameters.single().type.rawType()
         val generatedInjector = membersInjectorTransformer.getOrGenerateInjector(targetClass)
         val allParams = generatedInjector?.injectFunctions?.values?.toList().orEmpty()
         val parameters =
@@ -1224,7 +1229,14 @@ internal class DependencyGraphTransformer(
             contextKey,
             // Need to look up the injector class and gather all params
             parameters =
-              Parameters(injector.callableId, null, null, parameters.valueParameters, null),
+              Parameters(
+                injector.callableId,
+                null,
+                null,
+                parameters.regularParameters,
+                parameters.contextParameters,
+                null,
+              ),
             reportableLocation = injector.ir.location(),
             function = injector.ir,
             isFromInjectorFunction = true,
@@ -1262,11 +1274,10 @@ internal class DependencyGraphTransformer(
             pluginContext.createIrBuilder(symbol).run {
               irExprBodySafe(
                 symbol,
-                irCall(metroGraph.primaryConstructor!!.symbol).apply {
-                  for (param in createFunction.valueParameters) {
-                    putValueArgument(param.index, irGet(param))
-                  }
-                },
+                irCallConstructorWithSameParameters(
+                  source = createFunction,
+                  constructor = metroGraph.primaryConstructor!!.symbol,
+                ),
               )
             }
         }
@@ -1342,12 +1353,12 @@ internal class DependencyGraphTransformer(
       val instanceFields = mutableMapOf<IrTypeKey, IrField>()
 
       node.creator?.let { creator ->
-        for ((i, param) in creator.parameters.valueParameters.withIndex()) {
+        for ((i, param) in creator.parameters.regularParameters.withIndex()) {
           val isBindsInstance = param.isBindsInstance
 
           // TODO if we copy the annotations over in FIR we can skip this creator lookup all
           //  together
-          val irParam = ctor.valueParameters[i]
+          val irParam = ctor.regularParameters[i]
 
           val addBoundInstanceField: (initializer: IrBuilderWithScope.() -> IrExpression) -> Unit =
             { initializer ->
@@ -1617,9 +1628,10 @@ internal class DependencyGraphTransformer(
                 initializer =
                   pluginContext.createIrBuilder(symbol).run {
                     irExprBody(
-                      irInvoke(callee = symbols.metroDelegateFactoryConstructor).apply {
-                        putTypeArgument(0, deferredTypeKey.type)
-                      }
+                      irInvoke(
+                        callee = symbols.metroDelegateFactoryConstructor,
+                        typeArgs = listOf(deferredTypeKey.type),
+                      )
                     )
                   }
               }
@@ -1688,27 +1700,27 @@ internal class DependencyGraphTransformer(
         val binding = bindingGraph.requireBinding(deferredTypeKey, bindingStack)
         extraConstructorStatements.add {
           irInvoke(
-              dispatchReceiver = irGetObject(symbols.metroDelegateFactoryCompanion),
-              callee = symbols.metroDelegateFactorySetDelegate,
-              // TODO de-dupe?
-              args =
-                listOf(
-                  irGetField(irGet(thisReceiverParameter), field),
-                  pluginContext.createIrBuilder(symbol).run {
-                    generateBindingCode(
-                        binding,
-                        baseGenerationContext,
-                        fieldInitKey = deferredTypeKey,
-                      )
-                      .letIf(binding.scope != null) {
-                        // If it's scoped, wrap it in double-check
-                        // DoubleCheck.provider(<provider>)
-                        it.doubleCheck(this@run, symbols, binding.typeKey)
-                      }
-                  },
-                ),
-            )
-            .apply { putTypeArgument(0, deferredTypeKey.type) }
+            dispatchReceiver = irGetObject(symbols.metroDelegateFactoryCompanion),
+            callee = symbols.metroDelegateFactorySetDelegate,
+            typeArgs = listOf(deferredTypeKey.type),
+            // TODO de-dupe?
+            args =
+              listOf(
+                irGetField(irGet(thisReceiverParameter), field),
+                pluginContext.createIrBuilder(symbol).run {
+                  generateBindingCode(
+                      binding,
+                      baseGenerationContext,
+                      fieldInitKey = deferredTypeKey,
+                    )
+                    .letIf(binding.scope != null) {
+                      // If it's scoped, wrap it in double-check
+                      // DoubleCheck.provider(<provider>)
+                      it.doubleCheck(this@run, symbols, binding.typeKey)
+                    }
+                },
+              ),
+          )
         }
       }
 
@@ -1974,7 +1986,7 @@ internal class DependencyGraphTransformer(
     injectors.forEach { (overriddenFunction, typeKey) ->
       overriddenFunction.ir.apply {
         finalizeFakeOverride(context.thisReceiver)
-        val targetParam = valueParameters[0]
+        val targetParam = regularParameters[0]
         val binding =
           context.graph.requireBinding(typeKey, context.bindingStack) as Binding.MembersInjected
         context.bindingStack.push(
@@ -2007,7 +2019,7 @@ internal class DependencyGraphTransformer(
                   args =
                     buildList {
                       add(irGet(targetParam))
-                      for (parameter in parameters.valueParameters) {
+                      for (parameter in parameters.regularParameters) {
                         val paramBinding =
                           context.graph.requireBinding(
                             parameter.contextualTypeKey,
@@ -2068,9 +2080,9 @@ internal class DependencyGraphTransformer(
               symbol,
               irCallConstructor(ctor.symbol, emptyList()).apply {
                 // First arg is always the graph instance
-                putValueArgument(0, irGet(irFunction.dispatchReceiverParameter!!))
-                for (i in 0 until valueParameters.size) {
-                  putValueArgument(i + 1, irGet(irFunction.valueParameters[i]))
+                arguments[0] = irGet(irFunction.dispatchReceiverParameter!!)
+                for (i in 0 until regularParameters.size) {
+                  arguments[i + 1] = irGet(irFunction.regularParameters[i])
                 }
               },
             )
@@ -2389,29 +2401,29 @@ internal class DependencyGraphTransformer(
     val paramsToMap = buildList {
       if (
         binding is Binding.Provided &&
-          targetParams.instance?.type?.rawTypeOrNull()?.isObject != true
+          targetParams.dispatchReceiverParameter?.type?.rawTypeOrNull()?.isObject != true
       ) {
-        targetParams.instance?.let(::add)
+        targetParams.dispatchReceiverParameter?.let(::add)
       }
-      addAll(targetParams.valueParameters.filterNot { it.isAssisted })
+      addAll(targetParams.regularParameters.filterNot { it.isAssisted })
     }
     if (
       binding is Binding.Provided &&
         binding.providerFactory.providesFunction.correspondingPropertySymbol == null
     ) {
-      check(params.valueParameters.size == paramsToMap.size) {
+      check(params.regularParameters.size == paramsToMap.size) {
         """
         Inconsistent parameter types for type ${binding.typeKey}!
         Input type keys:
           - ${paramsToMap.map { it.typeKey }.joinToString()}
         Binding parameters (${function.kotlinFqName}):
-          - ${function.valueParameters.map { IrContextualTypeKey.from(metroContext,it).typeKey }.joinToString()}
+          - ${function.regularParameters.map { IrContextualTypeKey.from(metroContext,it).typeKey }.joinToString()}
         """
           .trimIndent()
       }
     }
 
-    return params.valueParameters.mapIndexed { i, param ->
+    return params.regularParameters.mapIndexed { i, param ->
       val contextualTypeKey = paramsToMap[i].contextualTypeKey
       val typeKey = contextualTypeKey.typeKey
 
@@ -2451,7 +2463,7 @@ internal class DependencyGraphTransformer(
                 IrBindingStack.Entry.injectedAt(
                   contextualTypeKey,
                   constructor,
-                  constructor.valueParameters[i],
+                  constructor.regularParameters[i],
                 )
               }
 
@@ -2462,7 +2474,7 @@ internal class DependencyGraphTransformer(
                 IrBindingStack.Entry.injectedAt(
                   contextualTypeKey,
                   function,
-                  function.valueParameters[i],
+                  function.regularParameters[i],
                 )
               }
 
@@ -2528,7 +2540,7 @@ internal class DependencyGraphTransformer(
         mapKey
       } else {
         // We can just copy the expression!
-        mapKey.getValueArgument(0)!!.deepCopyWithSymbols()
+        mapKey.arguments[0]!!.deepCopyWithSymbols()
       }
 
     return expression
@@ -2695,8 +2707,8 @@ internal class DependencyGraphTransformer(
           irInvoke(
               dispatchReceiver = irGetObject(symbols.metroMembersInjectors),
               callee = symbols.metroMembersInjectorsNoOp,
+              typeArgs = listOf(injectedType),
             )
-            .apply { putTypeArgument(0, injectedType) }
             .let { with(metroProviderSymbols) { transformMetroProvider(it, contextualTypeKey) } }
         } else {
           val createFunction = injectorClass.requireSimpleFunction(Symbols.StringNames.CREATE)
@@ -2776,12 +2788,12 @@ internal class DependencyGraphTransformer(
             +irReturn(returnExpression)
           }
         irInvoke(
-            dispatchReceiver = null,
-            callee = symbols.metroProviderFunction,
-            typeHint = binding.typeKey.type.wrapInProvider(symbols.metroProvider),
-            args = listOf(lambda),
-          )
-          .apply { putTypeArgument(0, binding.typeKey.type) }
+          dispatchReceiver = null,
+          callee = symbols.metroProviderFunction,
+          typeHint = binding.typeKey.type.wrapInProvider(symbols.metroProvider),
+          typeArgs = listOf(binding.typeKey.type),
+          args = listOf(lambda),
+        )
       }
     }
   }
@@ -2869,7 +2881,7 @@ internal class DependencyGraphTransformer(
               suspend = false,
             ) { function ->
               // This is the mutable set receiver
-              val functionReceiver = function.extensionReceiverParameter!!
+              val functionReceiver = function.extensionReceiverParameterCompat!!
               binding.sourceBindings
                 .map { generationContext.graph.requireBinding(it, generationContext.bindingStack) }
                 .forEach { provider ->
@@ -2891,7 +2903,7 @@ internal class DependencyGraphTransformer(
     return irCall(callee = callee, type = binding.typeKey.type, typeArguments = listOf(elementType))
       .apply {
         for ((i, arg) in args.withIndex()) {
-          putValueArgument(i, arg)
+          arguments[i] = arg
         }
       }
   }
@@ -2911,45 +2923,34 @@ internal class DependencyGraphTransformer(
     // SetFactory.<String>builder(1, 1)
     val builder: IrExpression =
       irInvoke(
-          dispatchReceiver = irGetObject(symbols.setFactoryCompanionObject),
-          callee = symbols.setFactoryBuilderFunction,
-          typeHint = symbols.setFactoryBuilder.typeWith(elementType),
-        )
-        .apply {
-          putTypeArgument(0, elementType)
-          putValueArgument(0, irInt(individualProviders.size))
-          putValueArgument(1, irInt(collectionProviders.size))
-        }
+        dispatchReceiver = irGetObject(symbols.setFactoryCompanionObject),
+        callee = symbols.setFactoryBuilderFunction,
+        typeHint = symbols.setFactoryBuilder.typeWith(elementType),
+        typeArgs = listOf(elementType),
+        args = listOf(irInt(individualProviders.size), irInt(collectionProviders.size)),
+      )
 
     val withProviders =
       individualProviders.fold(builder) { receiver, provider ->
         irInvoke(
-            dispatchReceiver = receiver,
-            callee = symbols.setFactoryBuilderAddProviderFunction,
-            typeHint = builder.type,
-          )
-          .apply {
-            putValueArgument(
-              0,
-              generateBindingCode(provider, generationContext, fieldInitKey = fieldInitKey),
-            )
-          }
+          dispatchReceiver = receiver,
+          callee = symbols.setFactoryBuilderAddProviderFunction,
+          typeHint = builder.type,
+          args =
+            listOf(generateBindingCode(provider, generationContext, fieldInitKey = fieldInitKey)),
+        )
       }
 
     // .addProvider(FileSystemModule_Companion_ProvideString1Factory.create())
     val withCollectionProviders =
       collectionProviders.fold(withProviders) { receiver, provider ->
         irInvoke(
-            dispatchReceiver = receiver,
-            callee = symbols.setFactoryBuilderAddCollectionProviderFunction,
-            typeHint = builder.type,
-          )
-          .apply {
-            putValueArgument(
-              0,
-              generateBindingCode(provider, generationContext, fieldInitKey = fieldInitKey),
-            )
-          }
+          dispatchReceiver = receiver,
+          callee = symbols.setFactoryBuilderAddCollectionProviderFunction,
+          typeHint = builder.type,
+          args =
+            listOf(generateBindingCode(provider, generationContext, fieldInitKey = fieldInitKey)),
+        )
       }
 
     // .build()
@@ -3047,15 +3048,12 @@ internal class DependencyGraphTransformer(
     // MapProviderFactory.<Integer, Integer>builder(2)
     val builder: IrExpression =
       irInvoke(
-          dispatchReceiver = irGetObject(targetCompanionObject),
-          callee = builderFunction,
-          typeHint = builderType.typeWith(keyType, valueType),
-        )
-        .apply {
-          putTypeArgument(0, keyType)
-          putTypeArgument(1, valueType)
-          putValueArgument(0, irInt(size))
-        }
+        dispatchReceiver = irGetObject(targetCompanionObject),
+        callee = builderFunction,
+        typeArgs = listOf(keyType, valueType),
+        typeHint = builderType.typeWith(keyType, valueType),
+        args = listOf(irInt(size)),
+      )
 
     val putFunction =
       if (useProviderFactory) {
@@ -3090,13 +3088,16 @@ internal class DependencyGraphTransformer(
               // .put(1, FileSystemModule_Companion_ProvideMapInt1Factory.create())
               putFunction
             }
-          irInvoke(dispatchReceiver = receiver, callee = putter, typeHint = builder.type).apply {
-            putValueArgument(0, generateMapKeyLiteral(sourceBinding))
-            putValueArgument(
-              1,
-              generateBindingCode(sourceBinding, generationContext, fieldInitKey = fieldInitKey),
-            )
-          }
+          irInvoke(
+            dispatchReceiver = receiver,
+            callee = putter,
+            typeHint = builder.type,
+            args =
+              listOf(
+                generateMapKeyLiteral(sourceBinding),
+                generateBindingCode(sourceBinding, generationContext, fieldInitKey = fieldInitKey),
+              ),
+          )
         }
 
     // .build()

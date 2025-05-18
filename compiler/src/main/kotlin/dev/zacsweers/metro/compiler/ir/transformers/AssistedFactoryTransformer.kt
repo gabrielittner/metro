@@ -18,6 +18,7 @@ import dev.zacsweers.metro.compiler.ir.parameters.Parameter
 import dev.zacsweers.metro.compiler.ir.parameters.Parameter.AssistedParameterKey.Companion.toAssistedParameterKey
 import dev.zacsweers.metro.compiler.ir.parameters.parameters
 import dev.zacsweers.metro.compiler.ir.rawType
+import dev.zacsweers.metro.compiler.ir.regularParameters
 import dev.zacsweers.metro.compiler.ir.requireSimpleFunction
 import dev.zacsweers.metro.compiler.ir.thisReceiverOrFail
 import dev.zacsweers.metro.compiler.ir.transformers.AssistedFactoryTransformer.AssistedFactoryFunction.Companion.toAssistedFactoryFunction
@@ -121,7 +122,7 @@ internal class AssistedFactoryTransformer(
 
     val constructorParams = injectConstructor.parameters(this)
     val assistedParameters =
-      constructorParams.valueParameters.filter { parameter -> parameter.isAssisted }
+      constructorParams.regularParameters.filter { parameter -> parameter.isAssisted }
     val assistedParameterKeys =
       assistedParameters.map { parameter -> parameter.assistedParameterKey }
 
@@ -132,7 +133,7 @@ internal class AssistedFactoryTransformer(
       creatorFunction.originalFunction.apply {
         finalizeFakeOverride(implClass.thisReceiverOrFail)
         val functionParams =
-          valueParameters.associateBy { valueParam ->
+          regularParameters.associateBy { valueParam ->
             val key = IrContextualTypeKey.from(metroContext, valueParam).typeKey
             valueParam.toAssistedParameterKey(symbols, key)
           }
@@ -169,7 +170,7 @@ internal class AssistedFactoryTransformer(
 
     val companion = implClass.companionObject()!!
     companion.requireSimpleFunction(Symbols.StringNames.CREATE).owner.apply {
-      val factoryParam = valueParameters.single()
+      val factoryParam = regularParameters.single()
       // InstanceFactory(Impl(delegateFactory))
       body =
         pluginContext.createIrBuilder(symbol).run {
@@ -212,8 +213,8 @@ internal class AssistedFactoryTransformer(
           returnType = returnType,
           originalFunction = originalDeclaration,
           parameterKeys =
-            originalDeclaration.valueParameters.mapIndexed { index, param ->
-              param.toAssistedParameterKey(context.symbols, params.valueParameters[index].typeKey)
+            originalDeclaration.regularParameters.mapIndexed { index, param ->
+              param.toAssistedParameterKey(context.symbols, params.regularParameters[index].typeKey)
             },
         )
       }

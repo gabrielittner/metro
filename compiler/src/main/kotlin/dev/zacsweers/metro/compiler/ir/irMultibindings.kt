@@ -45,8 +45,8 @@ internal fun IrTypeKey.transformMultiboundQualifier(
 
   val newQualifier =
     metroContext.pluginContext.buildAnnotation(symbol, metroContext.symbols.multibindingElement) {
-      it.putValueArgument(0, irString(bindingId))
-      it.putValueArgument(1, irString(elementId))
+      it.arguments[0] = irString(bindingId)
+      it.arguments[1] = irString(elementId)
     }
 
   return copy(qualifier = IrAnnotation(newQualifier))
@@ -94,7 +94,7 @@ internal fun IrMetroContext.shouldUnwrapMapKeyValues(mapKey: IrConstructorCall):
 internal fun IrMetroContext.mapKeyType(mapKey: IrAnnotation): IrType {
   val unwrapValues = metroContext.shouldUnwrapMapKeyValues(mapKey)
   return if (unwrapValues) {
-      mapKey.ir.annotationClass.primaryConstructor!!.valueParameters[0].type
+      mapKey.ir.annotationClass.primaryConstructor!!.regularParameters[0].type
     } else {
       mapKey.ir.type
     }

@@ -14,8 +14,9 @@ import dev.zacsweers.metro.compiler.metroAnnotations
 import dev.zacsweers.metro.compiler.singleOrError
 import java.io.File
 import java.util.Objects
+import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
-import org.jetbrains.kotlin.backend.common.ir.addExtensionReceiver
+import org.jetbrains.kotlin.backend.common.ir.createExtensionReceiver
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocationWithRange
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
@@ -23,7 +24,6 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.IrGeneratorContext
@@ -40,6 +40,7 @@ import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irGetObject
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.DelicateIrParameterIndexSetter
 import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -51,6 +52,7 @@ import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrOverridableDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
@@ -100,6 +102,7 @@ import org.jetbrains.kotlin.ir.util.isFakeOverriddenFromAny
 import org.jetbrains.kotlin.ir.util.isObject
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nestedClasses
+import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.ClassId
@@ -177,8 +180,8 @@ internal fun IrAnnotationContainer.findAnnotations(classId: ClassId): Sequence<I
 }
 
 internal fun <T> IrConstructorCall.constArgumentOfTypeAt(position: Int): T? {
-  if (valueArgumentsCount == 0) return null
-  return (getValueArgument(position) as? IrConst?)?.valueAs()
+  if (arguments.isEmpty()) return null
+  return (arguments[position] as? IrConst?)?.valueAs()
 }
 
 internal fun <T> IrConst.valueAs(): T {
@@ -201,14 +204,21 @@ internal fun IrBuilderWithScope.irInvoke(
   extensionReceiver: IrExpression? = null,
   callee: IrFunctionSymbol,
   typeHint: IrType? = null,
+  typeArgs: List<IrType>? = null,
   args: List<IrExpression?> = emptyList(),
 ): IrMemberAccessExpression<*> {
   assert(callee.isBound) { "Symbol $callee expected to be bound" }
   val returnType = typeHint ?: callee.owner.returnType
   val call = irCall(callee, type = returnType)
-  call.extensionReceiver = extensionReceiver
-  call.dispatchReceiver = dispatchReceiver
-  args.forEachIndexed(call::putValueArgument)
+  typeArgs?.let {
+    for ((i, typeArg) in typeArgs.withIndex()) {
+      call.typeArguments[i] = typeArg
+    }
+  }
+  var index = 0
+  dispatchReceiver?.let { call.arguments[index++] = it }
+  extensionReceiver?.let { call.arguments[index++] = it }
+  args.forEach { call.arguments[index++] = it }
   return call
 }
 
@@ -240,7 +250,7 @@ internal fun IrStatementsBuilder<*>.irTemporary(
 internal fun IrConstructorCall.computeAnnotationHash(): Int {
   return Objects.hash(
     type.rawType().classIdOrFail,
-    valueArguments
+    arguments
       .map {
         it?.computeHashSource()
           ?: error("Unknown annotation argument type: ${it?.let { it::class.java }}")
@@ -340,7 +350,7 @@ internal fun irLambda(
       }
       .apply {
         this.parent = parent
-        receiverParameter?.let { addExtensionReceiver(it) }
+        receiverParameter?.let { setExtensionReceiver(createExtensionReceiver(it)) }
         valueParameters.forEachIndexed { index, type -> addValueParameter("arg$index", type) }
         body = context.createIrBuilder(this.symbol).irBlockBody { content(this@apply) }
       }
@@ -368,13 +378,13 @@ internal fun IrBuilderWithScope.irCallConstructorWithSameParameters(
 ): IrConstructorCall {
   return irCall(constructor)
     .apply {
-      for (parameter in source.valueParameters) {
-        putValueArgument(parameter.index, irGet(parameter))
+      for ((i, parameter) in source.nonDispatchParameters.withIndex()) {
+        arguments[i] = irGet(parameter)
       }
     }
     .apply {
       for (typeParameter in source.typeParameters) {
-        putTypeArgument(typeParameter.index, typeParameter.defaultType)
+        typeArguments[typeParameter.index] = typeParameter.defaultType
       }
     }
 }
@@ -443,6 +453,7 @@ internal fun IrBuilderWithScope.typeAsProviderArgument(
       irInvoke(
         dispatchReceiver = irGetObject(symbols.providerOfLazyCompanionObject),
         callee = symbols.providerOfLazyCreate,
+        typeArgs = listOf(contextKey.typeKey.type),
         args = listOf(providerExpression),
         typeHint = contextKey.typeKey.type.wrapInLazy(symbols).wrapInProvider(symbols.metroProvider),
       )
@@ -493,7 +504,7 @@ internal fun IrMetroContext.assignConstructorParamsToFields(
   clazz: IrClass,
 ): Map<IrValueParameter, IrField> {
   return buildMap {
-    for (irParameter in constructor.valueParameters) {
+    for (irParameter in constructor.regularParameters) {
       val irField =
         clazz.addField(irParameter.name, irParameter.type, DescriptorVisibilities.PRIVATE).apply {
           isFinal = true
@@ -509,7 +520,7 @@ internal fun IrMetroContext.assignConstructorParamsToFields(
   clazz: IrClass,
 ): Map<Parameter, IrField> {
   return buildMap {
-    for (irParameter in parameters.valueParameters) {
+    for (irParameter in parameters.regularParameters) {
       val irField =
         clazz
           .addField(
@@ -576,15 +587,12 @@ internal fun IrExpression.doubleCheck(
   with(irBuilder) {
     val providerType = typeKey.type.wrapInProvider(symbols.metroProvider)
     irInvoke(
-        dispatchReceiver = irGetObject(symbols.doubleCheckCompanionObject),
-        callee = symbols.doubleCheckProvider,
-        typeHint = providerType,
-        args = listOf(this@doubleCheck),
-      )
-      .apply {
-        putTypeArgument(0, providerType)
-        putTypeArgument(1, typeKey.type)
-      }
+      dispatchReceiver = irGetObject(symbols.doubleCheckCompanionObject),
+      callee = symbols.doubleCheckProvider,
+      typeHint = providerType,
+      typeArgs = listOf(providerType, typeKey.type),
+      args = listOf(this@doubleCheck),
+    )
   }
 
 internal fun IrClass.allFunctions(pluginContext: IrPluginContext): Sequence<IrSimpleFunction> {
@@ -666,8 +674,7 @@ internal fun IrClass.implementsAny(
  * - The argument is not a const boolean
  */
 internal fun IrConstructorCall.getSingleConstBooleanArgumentOrNull(): Boolean? {
-  if (valueArgumentsCount != 1) return null
-  return (getValueArgument(0) as IrConst?)?.value as Boolean?
+  return constArgumentOfTypeAt<Boolean>(0)
 }
 
 internal fun IrConstructorCall.getConstBooleanArgumentOrNull(name: Name): Boolean? =
@@ -798,8 +805,9 @@ internal fun IrOverridableDeclaration<*>.finalizeFakeOverride(
   origin = IrDeclarationOrigin.DEFINED
   modality = Modality.FINAL
   if (this is IrSimpleFunction) {
-    this.dispatchReceiverParameter =
+    setDispatchReceiver(
       dispatchReceiverParameter.copyTo(this, type = dispatchReceiverParameter.type)
+    )
   } else if (this is IrProperty) {
     this.getter?.finalizeFakeOverride(dispatchReceiverParameter)
     this.setter?.finalizeFakeOverride(dispatchReceiverParameter)
@@ -884,3 +892,67 @@ internal fun IrMetroContext.hiddenDeprecated(
         )
     }
 }
+
+internal val IrFunction.extensionReceiverParameterCompat: IrValueParameter?
+  get() {
+    return parameters.firstOrNull { it.kind == IrParameterKind.ExtensionReceiver }
+  }
+
+internal fun IrFunction.setExtensionReceiver(value: IrValueParameter?) {
+  setReceiverParameter(IrParameterKind.ExtensionReceiver, value)
+}
+
+internal fun IrFunction.setDispatchReceiver(value: IrValueParameter?) {
+  setReceiverParameter(IrParameterKind.DispatchReceiver, value)
+}
+
+@OptIn(DelicateIrParameterIndexSetter::class, DeprecatedForRemovalCompilerApi::class)
+private fun IrFunction.setReceiverParameter(kind: IrParameterKind, value: IrValueParameter?) {
+  val parameters = parameters.toMutableList()
+
+  var index = parameters.indexOfFirst { it.kind == kind }
+  var reindexSubsequent = false
+  if (index >= 0) {
+    val old = parameters[index]
+    old.indexInOldValueParameters = -1
+    old.indexInParameters = -1
+
+    if (value != null) {
+      parameters[index] = value
+    } else {
+      parameters.removeAt(index)
+      reindexSubsequent = true
+    }
+  } else {
+    if (value != null) {
+      index = parameters.indexOfLast { it.kind < kind } + 1
+      parameters.add(index, value)
+      reindexSubsequent = true
+    } else {
+      // nothing
+    }
+  }
+
+  if (value != null) {
+    value.indexInOldValueParameters = -1
+    value.indexInParameters = index
+    value.kind = kind
+  }
+
+  if (reindexSubsequent) {
+    for (i in index..<parameters.size) {
+      parameters[i].indexInParameters = i
+    }
+  }
+  this.parameters = parameters
+}
+
+internal val IrFunction.contextParameters: List<IrValueParameter>
+  get() {
+    return parameters.filter { it.kind == IrParameterKind.Context }
+  }
+
+internal val IrFunction.regularParameters: List<IrValueParameter>
+  get() {
+    return parameters.filter { it.kind == IrParameterKind.Regular }
+  }
