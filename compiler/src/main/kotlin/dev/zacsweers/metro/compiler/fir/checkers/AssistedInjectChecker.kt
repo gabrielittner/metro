@@ -39,7 +39,7 @@ internal object AssistedInjectChecker : FirClassChecker(MppCheckerKind.Common) {
 
     if (!isAssistedFactory) return
 
-    declaration.validateApiDeclaration(context, reporter, "@Assisted.Factory declarations") {
+    declaration.validateApiDeclaration("@Assisted.Factory declarations") {
       return
     }
 

@@ -385,9 +385,8 @@ internal fun FirAnnotationCall.computeAnnotationHash(
           is FirPropertyAccessExpression -> {
             arg.calleeReference
               .toResolvedPropertySymbol()
-              ?.receiverParameter
-              ?.typeRef
-              ?.coneTypeOrNull
+              ?.resolvedReceiverTypeRef
+              ?.coneType
               ?.classId
           }
           else -> {

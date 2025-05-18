@@ -52,11 +52,11 @@ internal class FirTypeKey(val type: ConeKotlinType, val qualifier: MetroFirAnnot
     fun from(session: FirSession, parameter: FirValueParameterSymbol): FirTypeKey {
       val annotations =
         if (parameter.containingFunctionSymbol?.receiverParameter == parameter) {
-          parameter.containingFunctionSymbol!!.annotations.filter {
+          parameter.containingFunctionSymbol!!.resolvedCompilerAnnotationsWithClassIds.filter {
             it.useSiteTarget == AnnotationUseSiteTarget.RECEIVER
           }
         } else {
-          parameter.annotations
+          parameter.resolvedCompilerAnnotationsWithClassIds
         }
       return from(session, parameter.resolvedReturnTypeRef, annotations)
     }

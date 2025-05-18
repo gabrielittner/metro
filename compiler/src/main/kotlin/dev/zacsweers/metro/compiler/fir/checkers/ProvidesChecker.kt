@@ -64,7 +64,7 @@ internal object ProvidesChecker : FirCallableDeclarationChecker(MppCheckerKind.C
           it.isAnnotatedWithAny(session, classIds.providesAnnotations)
         }
       if (overridesAProvider) {
-        reporter.reportOn(source, FirMetroErrors.PROVIDER_OVERRIDES, context)
+        reporter.reportOn(source, FirMetroErrors.PROVIDER_OVERRIDES)
       }
     }
 
