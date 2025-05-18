@@ -22,13 +22,11 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaredMemberScope
 import org.jetbrains.kotlin.fir.analysis.checkers.getAllowedAnnotationTargets
 import org.jetbrains.kotlin.fir.analysis.checkers.getContainingClassSymbol
-import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirClassLikeDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
-import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.evaluateAs
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
@@ -67,7 +65,7 @@ import org.jetbrains.kotlin.fir.expressions.unexpandedClassId
 import org.jetbrains.kotlin.fir.extensions.FirSupertypeGenerationExtension.TypeResolveService
 import org.jetbrains.kotlin.fir.extensions.MemberGenerationContext
 import org.jetbrains.kotlin.fir.extensions.NestedClassGenerationContext
-import org.jetbrains.kotlin.fir.extensions.buildUserTypeFromQualifierParts
+import org.jetbrains.kotlin.fir.extensions.typeFromQualifierParts
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.builder.buildResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.impl.FirSimpleNamedReference
@@ -79,11 +77,8 @@ import org.jetbrains.kotlin.fir.renderer.ConeTypeRendererForReadability
 import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.getSuperTypes
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
-import org.jetbrains.kotlin.fir.resolve.providers.getRegularClassSymbolByClassId
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.toClassSymbol
-import org.jetbrains.kotlin.fir.scopes.impl.FirClassDeclaredMemberScope
-import org.jetbrains.kotlin.fir.scopes.impl.FirNestedClassifierScope
 import org.jetbrains.kotlin.fir.scopes.impl.toConeType
 import org.jetbrains.kotlin.fir.scopes.jvm.computeJvmDescriptor
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
@@ -966,19 +961,16 @@ internal fun FirGetClassCall.resolvedClassArgumentTarget(
   if (isResolved) {
     return (argument as? FirClassReferenceExpression?)?.classTypeRef?.coneTypeOrNull
   }
+  val source = source ?: return null
 
-  val typeToResolve =
-    buildUserTypeFromQualifierParts(isMarkedNullable = false) {
-      fun visitQualifiers(expression: FirExpression) {
-        if (expression !is FirPropertyAccessExpression) return
-        expression.explicitReceiver?.let { visitQualifiers(it) }
-        expression.qualifierName?.let { part(it) }
-      }
-      visitQualifiers(argument)
+  return typeFromQualifierParts(isMarkedNullable = false, typeResolver, source) {
+    fun visitQualifiers(expression: FirExpression) {
+      if (expression !is FirPropertyAccessExpression) return
+      expression.explicitReceiver?.let { visitQualifiers(it) }
+      expression.qualifierName?.let { part(it) }
     }
-
-  val resolvedArgument = typeResolver.resolveUserType(typeToResolve).coneType
-  return resolvedArgument
+    visitQualifiers(argument)
+  }
 }
 
 internal fun FirAnnotation.classArgument(name: Name, index: Int) =

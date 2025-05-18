@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.classKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirCallableDeclarationChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.directOverriddenSymbolsSafe
 import org.jetbrains.kotlin.fir.analysis.checkers.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
@@ -60,7 +61,7 @@ internal object ProvidesChecker : FirCallableDeclarationChecker(MppCheckerKind.C
     // If we ever wanted to allow providers in the future, this is the check to remove
     if (declaration.isOverride) {
       val overridesAProvider =
-        declaration.getDirectOverriddenSymbols(context).any {
+        declaration.symbol.directOverriddenSymbolsSafe(context).any {
           it.isAnnotatedWithAny(session, classIds.providesAnnotations)
         }
       if (overridesAProvider) {
