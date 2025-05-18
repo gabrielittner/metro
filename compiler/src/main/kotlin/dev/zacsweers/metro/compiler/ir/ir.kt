@@ -18,11 +18,13 @@ import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.ir.createExtensionReceiver
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocationWithRange
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
+import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
@@ -98,6 +100,7 @@ import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.getSimpleFunction
 import org.jetbrains.kotlin.ir.util.getValueArgument
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.ir.util.hasShape
 import org.jetbrains.kotlin.ir.util.isFakeOverriddenFromAny
 import org.jetbrains.kotlin.ir.util.isObject
 import org.jetbrains.kotlin.ir.util.kotlinFqName
@@ -304,7 +307,7 @@ internal fun IrClass.allCallableMembers(
   propertyFilter: (IrProperty) -> Boolean = { true },
 ): Sequence<MetroSimpleFunction> {
   return functions
-    .letIf(excludeAnyFunctions) { it.filterNot { function -> function.isFakeOverriddenFromAny() } }
+    .letIf(excludeAnyFunctions) { it.filterNot { function -> function.isInheritedFromAny(context.pluginContext.irBuiltIns) } }
     .filter(functionFilter)
     .plus(properties.filter(propertyFilter).mapNotNull { property -> property.getter })
     .letIf(excludeInheritedMembers) { it.filterNot { function -> function.isFakeOverride } }
@@ -956,3 +959,26 @@ internal val IrFunction.regularParameters: List<IrValueParameter>
   get() {
     return parameters.filter { it.kind == IrParameterKind.Regular }
   }
+
+internal fun IrSimpleFunction.isInheritedFromAny(irBuiltIns: IrBuiltIns): Boolean {
+  return isEqualsOnAny(irBuiltIns) || isHashCodeOnAny() || isToStringOnAny()
+}
+
+internal fun IrSimpleFunction.isEqualsOnAny(irBuiltIns: IrBuiltIns): Boolean {
+  return name == StandardNames.EQUALS_NAME &&
+    hasShape(
+      dispatchReceiver = true,
+      regularParameters = 1,
+      parameterTypes = listOf(null, irBuiltIns.anyType),
+    )
+}
+
+internal fun IrSimpleFunction.isHashCodeOnAny(): Boolean {
+  return name == StandardNames.HASHCODE_NAME &&
+    hasShape(dispatchReceiver = true, regularParameters = 0)
+}
+
+internal fun IrSimpleFunction.isToStringOnAny(): Boolean {
+  return name == StandardNames.TO_STRING_NAME &&
+    hasShape(dispatchReceiver = true, regularParameters = 0)
+}
