@@ -306,7 +306,9 @@ internal fun IrClass.allCallableMembers(
   propertyFilter: (IrProperty) -> Boolean = { true },
 ): Sequence<MetroSimpleFunction> {
   return functions
-    .letIf(excludeAnyFunctions) { it.filterNot { function -> function.isInheritedFromAny(context.pluginContext.irBuiltIns) } }
+    .letIf(excludeAnyFunctions) {
+      it.filterNot { function -> function.isInheritedFromAny(context.pluginContext.irBuiltIns) }
+    }
     .filter(functionFilter)
     .plus(properties.filter(propertyFilter).mapNotNull { property -> property.getter })
     .letIf(excludeInheritedMembers) { it.filterNot { function -> function.isFakeOverride } }
@@ -974,16 +976,10 @@ internal fun IrFunction.isEqualsOnAny(irBuiltIns: IrBuiltIns): Boolean {
 
 internal fun IrFunction.isHashCodeOnAny(): Boolean {
   return name == StandardNames.HASHCODE_NAME &&
-    hasShape(
-      dispatchReceiver = true,
-      regularParameters = 0,
-    )
+    hasShape(dispatchReceiver = true, regularParameters = 0)
 }
 
 internal fun IrFunction.isToStringOnAny(): Boolean {
   return name == StandardNames.TO_STRING_NAME &&
-    hasShape(
-      dispatchReceiver = true,
-      regularParameters = 0,
-    )
+    hasShape(dispatchReceiver = true, regularParameters = 0)
 }

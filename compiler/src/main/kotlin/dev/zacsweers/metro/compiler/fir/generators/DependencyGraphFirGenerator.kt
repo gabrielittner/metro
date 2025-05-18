@@ -193,8 +193,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
       val classId = classSymbol.classId.createNestedClassId(Symbols.Names.MetroGraph)
       names += classId.shortClassName
 
-      val hasCompanion =
-        context.nestedClasses().any { it.isCompanion }
+      val hasCompanion = context.nestedClasses().any { it.isCompanion }
       if (!hasCompanion) {
         // Generate a companion for us to generate these functions on to
         names += SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT
@@ -358,7 +357,9 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
             // Copy annotations over. Workaround for https://youtrack.jetbrains.com/issue/KT-74361/
             for ((i, parameter) in samFunction?.valueParameterSymbols.orEmpty().withIndex()) {
               val parameterToUpdate = valueParameters[i]
-              parameterToUpdate.replaceAnnotationsSafe(parameter.resolvedCompilerAnnotationsWithClassIds)
+              parameterToUpdate.replaceAnnotationsSafe(
+                parameter.resolvedCompilerAnnotationsWithClassIds
+              )
             }
           }
       } else if (context.owner.hasOrigin(Keys.MetroGraphFactoryImplDeclaration)) {
@@ -421,7 +422,9 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
             // Copy annotations over. Workaround for https://youtrack.jetbrains.com/issue/KT-74361/
             for ((i, parameter) in function.valueParameterSymbols.withIndex()) {
               val parameterToUpdate = valueParameters[i]
-              parameterToUpdate.replaceAnnotationsSafe(parameter.resolvedCompilerAnnotationsWithClassIds)
+              parameterToUpdate.replaceAnnotationsSafe(
+                parameter.resolvedCompilerAnnotationsWithClassIds
+              )
             }
             // Add our marker annotation
             replaceAnnotationsSafe(

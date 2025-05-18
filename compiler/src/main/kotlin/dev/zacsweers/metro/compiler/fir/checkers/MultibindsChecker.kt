@@ -25,9 +25,7 @@ import org.jetbrains.kotlin.name.StandardClassIds
 internal object MultibindsChecker : FirCallableDeclarationChecker(MppCheckerKind.Common) {
 
   context(context: CheckerContext, reporter: DiagnosticReporter)
-  override fun check(
-    declaration: FirCallableDeclaration,
-  ) {
+  override fun check(declaration: FirCallableDeclaration) {
     val source = declaration.source ?: return
     val session = context.session
 

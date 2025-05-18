@@ -49,9 +49,7 @@ import org.jetbrains.kotlin.fir.types.renderReadableWithFqNames
 internal object ProvidesChecker : FirCallableDeclarationChecker(MppCheckerKind.Common) {
 
   context(context: CheckerContext, reporter: DiagnosticReporter)
-  override fun check(
-    declaration: FirCallableDeclaration,
-  ) {
+  override fun check(declaration: FirCallableDeclaration) {
     val source = declaration.source ?: return
     val session = context.session
     val classIds = session.classIds
@@ -121,11 +119,7 @@ internal object ProvidesChecker : FirCallableDeclarationChecker(MppCheckerKind.C
 
     // Check property is not var
     if (declaration is FirProperty && declaration.isVar) {
-      reporter.reportOn(
-        source,
-        FirMetroErrors.PROVIDES_ERROR,
-        "@Provides properties cannot be var",
-      )
+      reporter.reportOn(source, FirMetroErrors.PROVIDES_ERROR, "@Provides properties cannot be var")
       return
     }
 
@@ -271,11 +265,19 @@ internal object ProvidesChecker : FirCallableDeclarationChecker(MppCheckerKind.C
 
         if (injectConstructor != null) {
           // If the type keys and scope are the same, this is redundant
-          val classTypeKey = FirTypeKey.from(session, returnType, returnClass.resolvedCompilerAnnotationsWithClassIds)
+          val classTypeKey =
+            FirTypeKey.from(
+              session,
+              returnType,
+              returnClass.resolvedCompilerAnnotationsWithClassIds,
+            )
           val providerTypeKey = FirTypeKey.from(session, returnType, declaration.annotations)
           if (classTypeKey == providerTypeKey) {
             val providerScope = annotations.scope
-            val classScope = returnClass.resolvedCompilerAnnotationsWithClassIds.scopeAnnotations(session).singleOrNull()
+            val classScope =
+              returnClass.resolvedCompilerAnnotationsWithClassIds
+                .scopeAnnotations(session)
+                .singleOrNull()
             // TODO maybe we should report matching keys but different scopes? Feels like it could
             //  be confusing at best
             if (providerScope == classScope) {

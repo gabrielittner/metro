@@ -347,8 +347,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
           InjectedClass(classSymbol, true, params)
         } else {
           // If the class is annotated with @Inject, look for its primary constructor
-          val injectConstructor = classSymbol.findInjectConstructors(
-            session).singleOrNull()
+          val injectConstructor = classSymbol.findInjectConstructors(session).singleOrNull()
           val params =
             injectConstructor?.valueParameterSymbols.orEmpty().map {
               MetroFirValueParameter(session, it)

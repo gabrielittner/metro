@@ -23,9 +23,7 @@ import org.jetbrains.kotlin.fir.types.type
 internal object AsContributionChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
 
   context(context: CheckerContext, reporter: DiagnosticReporter)
-  override fun check(
-    expression: FirFunctionCall,
-  ) {
+  override fun check(expression: FirFunctionCall) {
     val source = expression.source ?: return
 
     val callee = expression.toResolvedCallableSymbol() ?: return

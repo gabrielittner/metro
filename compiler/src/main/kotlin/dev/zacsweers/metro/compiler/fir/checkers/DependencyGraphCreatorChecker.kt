@@ -61,7 +61,7 @@ internal object DependencyGraphCreatorChecker : FirClassChecker(MppCheckerKind.C
     }
 
     declaration.validateApiDeclaration(
-      "${annotationClassId.relativeClassName.asString()} declarations",
+      "${annotationClassId.relativeClassName.asString()} declarations"
     ) {
       return
     }
@@ -118,7 +118,11 @@ internal object DependencyGraphCreatorChecker : FirClassChecker(MppCheckerKind.C
 
     val targetGraphScopes = targetGraphAnnotation?.allScopeClassIds().orEmpty()
     val targetGraphScopeAnnotations =
-      targetGraph?.resolvedCompilerAnnotationsWithClassIds?.scopeAnnotations(session).orEmpty().toSet()
+      targetGraph
+        ?.resolvedCompilerAnnotationsWithClassIds
+        ?.scopeAnnotations(session)
+        .orEmpty()
+        .toSet()
 
     if (isContributed) {
       val contributedScopes = graphFactoryAnnotation.allScopeClassIds()
@@ -271,7 +275,8 @@ internal object DependencyGraphCreatorChecker : FirClassChecker(MppCheckerKind.C
             }
 
             targetGraphScopeAnnotations.isNotEmpty() -> {
-              val parentScopeAnnotations = type.resolvedCompilerAnnotationsWithClassIds.scopeAnnotations(session).toSet()
+              val parentScopeAnnotations =
+                type.resolvedCompilerAnnotationsWithClassIds.scopeAnnotations(session).toSet()
               val overlaps = parentScopeAnnotations.intersect(targetGraphScopeAnnotations)
               if (overlaps.isNotEmpty()) {
                 reporter.reportOn(

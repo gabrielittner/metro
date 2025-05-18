@@ -50,7 +50,7 @@ internal class FirTypeKey(val type: ConeKotlinType, val qualifier: MetroFirAnnot
     }
 
     fun from(session: FirSession, parameter: FirValueParameterSymbol): FirTypeKey {
-      val annotations =  parameter.resolvedCompilerAnnotationsWithClassIds
+      val annotations = parameter.resolvedCompilerAnnotationsWithClassIds
       return from(session, parameter.resolvedReturnTypeRef, annotations)
     }
 

@@ -89,7 +89,7 @@ internal class GraphFactoryFirSupertypeGenerator(session: FirSession) :
   @ExperimentalSupertypesGenerationApi
   override fun computeAdditionalSupertypesForGeneratedNestedClass(
     klass: FirRegularClass,
-    typeResolver: TypeResolveService
+    typeResolver: TypeResolveService,
   ): List<ConeKotlinType> {
     val graphCreator = computeCompanionSupertype(klass, typeResolver) ?: return emptyList()
 

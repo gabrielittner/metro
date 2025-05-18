@@ -55,10 +55,10 @@ internal object DependencyGraphChecker : FirClassChecker(MppCheckerKind.Common) 
       // Must have a nested class annotated with `@ContributesGraphExtension.Factory`
       val hasNestedFactory =
         declaration.symbol.nestedClasses().any { nestedClass ->
-            nestedClass.isAnnotatedWithAny(
-              session,
-              classIds.contributesGraphExtensionFactoryAnnotations,
-            )
+          nestedClass.isAnnotatedWithAny(
+            session,
+            classIds.contributesGraphExtensionFactoryAnnotations,
+          )
         }
       if (!hasNestedFactory) {
         reporter.reportOn(
@@ -83,7 +83,7 @@ internal object DependencyGraphChecker : FirClassChecker(MppCheckerKind.Common) 
     }
 
     declaration.validateApiDeclaration(
-      "${graphAnnotationClassId.shortClassName.asString()} declarations",
+      "${graphAnnotationClassId.shortClassName.asString()} declarations"
     ) {
       return
     }
@@ -113,7 +113,8 @@ internal object DependencyGraphChecker : FirClassChecker(MppCheckerKind.Common) 
 
       // Functions with no params are accessors
       if (
-        callable is FirPropertySymbol || (callable is FirNamedFunctionSymbol && callable.valueParameterSymbols.isEmpty())
+        callable is FirPropertySymbol ||
+          (callable is FirNamedFunctionSymbol && callable.valueParameterSymbols.isEmpty())
       ) {
         val returnType = callable.resolvedReturnTypeRef.coneType
         if (returnType.isUnit) {

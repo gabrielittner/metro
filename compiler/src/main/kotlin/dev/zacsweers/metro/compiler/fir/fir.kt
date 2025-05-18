@@ -151,14 +151,18 @@ internal fun FirBasedSymbol<*>.isAnnotatedWithAny(
   session: FirSession,
   names: Set<ClassId>,
 ): Boolean {
-  return resolvedCompilerAnnotationsWithClassIds.filter { it.isResolved }.any { it.toAnnotationClassIdSafe(session) in names }
+  return resolvedCompilerAnnotationsWithClassIds
+    .filter { it.isResolved }
+    .any { it.toAnnotationClassIdSafe(session) in names }
 }
 
 internal fun FirBasedSymbol<*>.findAnnotation(
   session: FirSession,
   names: Set<ClassId>,
 ): FirAnnotation? {
-  return resolvedCompilerAnnotationsWithClassIds.filter { it.isResolved }.find { it.toAnnotationClassIdSafe(session) in names }
+  return resolvedCompilerAnnotationsWithClassIds
+    .filter { it.isResolved }
+    .find { it.toAnnotationClassIdSafe(session) in names }
 }
 
 internal fun List<FirAnnotation>.isAnnotatedWithAny(
@@ -401,15 +405,17 @@ internal inline fun FirClassSymbol<*>.findInjectConstructor(
       constructorInjections[0].also {
         if (it.isPrimary) {
           val isAssisted =
-            it.resolvedCompilerAnnotationsWithClassIds.isAnnotatedWithAny(session, session.classIds.assistedAnnotations)
+            it.resolvedCompilerAnnotationsWithClassIds.isAnnotatedWithAny(
+              session,
+              session.classIds.assistedAnnotations,
+            )
           if (!isAssisted && it.valueParameterSymbols.isEmpty()) {
             val inject =
-              it.resolvedCompilerAnnotationsWithClassIds.annotationsIn(session, session.classIds.injectAnnotations).single()
+              it.resolvedCompilerAnnotationsWithClassIds
+                .annotationsIn(session, session.classIds.injectAnnotations)
+                .single()
             if (KotlinTarget.CLASS in inject.getAllowedAnnotationTargets(session)) {
-              reporter.reportOn(
-                inject.source,
-                FirMetroErrors.SUGGEST_CLASS_INJECTION_IF_NO_PARAMS,
-              )
+              reporter.reportOn(inject.source, FirMetroErrors.SUGGEST_CLASS_INJECTION_IF_NO_PARAMS)
             }
           }
         }
@@ -440,7 +446,10 @@ internal fun FirClassSymbol<*>.findInjectConstructors(
     declarationSymbols.filterIsInstance<FirConstructorSymbol>().filter { it.isPrimary }
   } else {
     declarationSymbols.filterIsInstance<FirConstructorSymbol>().filter {
-      it.resolvedCompilerAnnotationsWithClassIds.isAnnotatedWithAny(session, session.classIds.injectAnnotations)
+      it.resolvedCompilerAnnotationsWithClassIds.isAnnotatedWithAny(
+        session,
+        session.classIds.injectAnnotations,
+      )
     }
   }
 }
@@ -502,10 +511,7 @@ internal fun FirCallableSymbol<*>.allAnnotations(): Sequence<FirAnnotation> {
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
-internal inline fun FirClass.validateApiDeclaration(
-  type: String,
-  onError: () -> Nothing,
-) {
+internal inline fun FirClass.validateApiDeclaration(type: String, onError: () -> Nothing) {
   if (isLocal) {
     reporter.reportOn(
       source,
@@ -568,19 +574,14 @@ internal inline fun FirClass.validateApiDeclaration(
     onError()
   }
   if (isAbstract && classKind == ClassKind.CLASS) {
-    primaryConstructorIfAny(context.session)?.validateVisibility(
-      "$type' primary constructor",
-    ) {
+    primaryConstructorIfAny(context.session)?.validateVisibility("$type' primary constructor") {
       onError()
     }
   }
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
-internal inline fun FirConstructorSymbol.validateVisibility(
-  type: String,
-  onError: () -> Nothing,
-) {
+internal inline fun FirConstructorSymbol.validateVisibility(type: String, onError: () -> Nothing) {
   checkVisibility { source, allowedVisibilities ->
     reporter.reportOn(
       source,
@@ -1058,20 +1059,15 @@ internal fun NestedClassGenerationContext.nestedClasses(): List<FirRegularClassS
   return collected
 }
 
-
 context(context: CheckerContext)
 internal fun FirClassSymbol<*>.directCallableSymbols(): List<FirCallableSymbol<*>> {
   val collected = mutableListOf<FirCallableSymbol<*>>()
-  declaredMemberScope(context).processAllCallables {
-    collected += it
-  }
+  declaredMemberScope(context).processAllCallables { collected += it }
   return collected
 }
 
 internal fun MemberGenerationContext.directCallableSymbols(): List<FirCallableSymbol<*>> {
   val collected = mutableListOf<FirCallableSymbol<*>>()
-  this.declaredScope?.processAllCallables {
-    collected += it
-  }
+  this.declaredScope?.processAllCallables { collected += it }
   return collected
 }
