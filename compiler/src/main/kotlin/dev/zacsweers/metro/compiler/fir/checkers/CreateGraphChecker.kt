@@ -5,13 +5,16 @@ package dev.zacsweers.metro.compiler.fir.checkers
 import dev.zacsweers.metro.compiler.fir.FirMetroErrors.CREATE_GRAPH_ERROR
 import dev.zacsweers.metro.compiler.fir.isAnnotatedWithAny
 import dev.zacsweers.metro.compiler.fir.metroFirBuiltIns
+import dev.zacsweers.metro.compiler.fir.nestedClasses
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.analysis.checkers.declaredMemberScope
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.resolve.providers.getRegularClassSymbolByClassId
 import org.jetbrains.kotlin.fir.resolve.toClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.types.classLikeLookupTagIfAny
@@ -20,10 +23,9 @@ import org.jetbrains.kotlin.fir.types.type
 
 internal object CreateGraphChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
 
+  context(context: CheckerContext, reporter: DiagnosticReporter)
   override fun check(
     expression: FirFunctionCall,
-    context: CheckerContext,
-    reporter: DiagnosticReporter,
   ) {
     val source = expression.source ?: return
 
@@ -46,13 +48,12 @@ internal object CreateGraphChecker : FirFunctionCallChecker(MppCheckerKind.Commo
             typeArg.source ?: source,
             CREATE_GRAPH_ERROR,
             "`createGraph` type argument '${rawType.classId.asFqNameString()}' must be annotated with a `@DependencyGraph` annotation.",
-            context,
           )
           return
         }
         // Check that it doesn't have a factory
         val creator =
-          rawType.declarationSymbols.filterIsInstance<FirClassSymbol<*>>().find {
+          rawType.nestedClasses().find {
             it.isAnnotatedWithAny(
               session,
               session.metroFirBuiltIns.classIds.dependencyGraphFactoryAnnotations,
@@ -63,7 +64,6 @@ internal object CreateGraphChecker : FirFunctionCallChecker(MppCheckerKind.Commo
             typeArg.source ?: source,
             CREATE_GRAPH_ERROR,
             "`createGraph` type argument '${rawType.classId.asFqNameString()}' has a factory at '${creator.classId.asFqNameString()}'. Use `createGraphFactory` with that type instead.",
-            context,
           )
           return
         }
@@ -84,7 +84,6 @@ internal object CreateGraphChecker : FirFunctionCallChecker(MppCheckerKind.Commo
             typeArg.source ?: source,
             CREATE_GRAPH_ERROR,
             "`createGraphFactory` type argument '${rawType.classId.asFqNameString()}' must be annotated with a `@DependencyGraph.Factory` annotation.",
-            context,
           )
           return
         }

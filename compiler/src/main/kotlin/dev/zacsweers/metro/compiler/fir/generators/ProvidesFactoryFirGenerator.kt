@@ -349,7 +349,7 @@ internal class ProvidesFactorySupertypeGenerator(session: FirSession) :
   override fun computeAdditionalSupertypesForGeneratedNestedClass(
     klass: FirRegularClass,
     typeResolver: TypeResolveService,
-  ): List<FirResolvedTypeRef> {
+  ): List<ConeKotlinType> {
     val originClassSymbol =
       klass.getContainingClassSymbol() as? FirClassSymbol<*> ?: return emptyList()
     val callableName =
@@ -411,7 +411,7 @@ internal class ProvidesFactorySupertypeGenerator(session: FirSession) :
       session.symbolProvider
         .getClassLikeSymbolByClassId(Symbols.ClassIds.metroFactory)!!
         .constructType(arrayOf(returnType))
-    return listOf(factoryType.toFirResolvedTypeRef())
+    return listOf(factoryType.toFirResolvedTypeRef().coneType)
   }
 
   private fun FirTypeRef.coneTypeLayered(typeResolver: TypeResolveService): ConeKotlinType? {

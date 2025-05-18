@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirClassLikeDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.declarations.processAllClassifiers
 import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
 import org.jetbrains.kotlin.fir.declarations.utils.isInterface
 import org.jetbrains.kotlin.fir.extensions.ExperimentalSupertypesGenerationApi
@@ -87,11 +88,11 @@ internal class GraphFactoryFirSupertypeGenerator(session: FirSession) :
   @ExperimentalSupertypesGenerationApi
   override fun computeAdditionalSupertypesForGeneratedNestedClass(
     klass: FirRegularClass,
-    typeResolver: TypeResolveService,
-  ): List<FirResolvedTypeRef> {
+    typeResolver: TypeResolveService
+  ): List<ConeKotlinType> {
     val graphCreator = computeCompanionSupertype(klass, typeResolver) ?: return emptyList()
 
-    return listOf(graphCreator.toFirResolvedTypeRef())
+    return listOf(graphCreator.toFirResolvedTypeRef().coneType)
   }
 
   private fun computeCompanionSupertype(

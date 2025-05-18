@@ -47,7 +47,8 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
     override fun toString(): String = readableName
   }
 
-  override fun check(declaration: FirClass, context: CheckerContext, reporter: DiagnosticReporter) {
+  context(context: CheckerContext, reporter: DiagnosticReporter)
+  override fun check(declaration: FirClass) {
     declaration.source ?: return
     val session = context.session
     val classIds = session.classIds
