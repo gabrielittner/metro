@@ -960,25 +960,31 @@ internal val IrFunction.regularParameters: List<IrValueParameter>
     return parameters.filter { it.kind == IrParameterKind.Regular }
   }
 
-internal fun IrSimpleFunction.isInheritedFromAny(irBuiltIns: IrBuiltIns): Boolean {
+internal fun IrFunction.isInheritedFromAny(irBuiltIns: IrBuiltIns): Boolean {
   return isEqualsOnAny(irBuiltIns) || isHashCodeOnAny() || isToStringOnAny()
 }
 
-internal fun IrSimpleFunction.isEqualsOnAny(irBuiltIns: IrBuiltIns): Boolean {
+internal fun IrFunction.isEqualsOnAny(irBuiltIns: IrBuiltIns): Boolean {
   return name == StandardNames.EQUALS_NAME &&
     hasShape(
       dispatchReceiver = true,
       regularParameters = 1,
-      parameterTypes = listOf(null, irBuiltIns.anyType),
+      parameterTypes = listOf(null, irBuiltIns.anyNType),
     )
 }
 
-internal fun IrSimpleFunction.isHashCodeOnAny(): Boolean {
+internal fun IrFunction.isHashCodeOnAny(): Boolean {
   return name == StandardNames.HASHCODE_NAME &&
-    hasShape(dispatchReceiver = true, regularParameters = 0)
+    hasShape(
+      dispatchReceiver = true,
+      regularParameters = 0,
+    )
 }
 
-internal fun IrSimpleFunction.isToStringOnAny(): Boolean {
+internal fun IrFunction.isToStringOnAny(): Boolean {
   return name == StandardNames.TO_STRING_NAME &&
-    hasShape(dispatchReceiver = true, regularParameters = 0)
+    hasShape(
+      dispatchReceiver = true,
+      regularParameters = 0,
+    )
 }

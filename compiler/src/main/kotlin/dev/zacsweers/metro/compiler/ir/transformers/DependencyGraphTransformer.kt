@@ -458,7 +458,7 @@ internal class DependencyGraphTransformer(
 
     for (declaration in nonNullMetroGraph.declarations) {
       if (!declaration.isFakeOverride) continue
-      if (declaration is IrSimpleFunction && declaration.isInheritedFromAny(pluginContext.irBuiltIns)) {
+      if (declaration is IrFunction && declaration.isInheritedFromAny(pluginContext.irBuiltIns)) {
         continue
       }
       val annotations = metroAnnotationsOf(declaration)
