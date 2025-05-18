@@ -76,8 +76,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             annotation,
             scope,
             classId,
-            context,
-            reporter,
             contributesIntoSetAnnotations,
             isMapBinding = false,
           ) { bindingType, _ ->
@@ -93,8 +91,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             annotation,
             scope,
             classId,
-            context,
-            reporter,
             contributesIntoMapAnnotations,
             isMapBinding = true,
           ) { bindingType, mapKey ->
@@ -133,8 +129,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
                 annotation,
                 scope,
                 classId,
-                context,
-                reporter,
                 contributesBindingAnnotations,
                 isMapBinding = false,
               ) { bindingType, _ ->
@@ -173,6 +167,7 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
   }
 
   @OptIn(UnexpandedTypeCheck::class)
+  context(context: CheckerContext, reporter: DiagnosticReporter)
   private fun <T : Contribution> checkBindingContribution(
     session: FirSession,
     kind: ContributionKind,
@@ -181,8 +176,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
     annotation: FirAnnotation,
     scope: ClassId,
     classId: ClassId,
-    context: CheckerContext,
-    reporter: DiagnosticReporter,
     collection: MutableSet<T>,
     isMapBinding: Boolean,
     createBinding: (FirTypeKey, mapKey: MetroFirAnnotation?) -> T,
@@ -198,7 +191,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
         annotation.source,
         FirMetroErrors.AGGREGATION_ERROR,
         "`@$kind` is only applicable to constructor-injected classes, assisted factories, or objects. Ensure ${declaration.symbol.classId.asSingleFqName()} is injectable or a bindable object.",
-        context,
       )
       return false
     }
@@ -213,7 +205,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
         annotation.source,
         FirMetroErrors.AGGREGATION_ERROR,
         "`@$kind` doesn't make sense on assisted-injected class ${declaration.symbol.classId.asSingleFqName()}. Did you mean to apply this to its assisted factory?",
-        context,
       )
       return false
     }
@@ -232,7 +223,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             explicitBindingType.source,
             FirMetroErrors.AGGREGATION_ERROR,
             "Explicit bound types should not be `Nothing` or `Nothing?`.",
-            context,
           )
           return false
         }
@@ -245,7 +235,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             explicitBindingType.source,
             FirMetroErrors.AGGREGATION_ERROR,
             "Redundant explicit bound type ${refClassId.asSingleFqName()} is the same as the annotated class ${refClassId.asSingleFqName()}.",
-            context,
           )
           return false
         }
@@ -255,7 +244,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             annotation.source,
             FirMetroErrors.AGGREGATION_ERROR,
             "`@$kind`-annotated class ${declaration.symbol.classId.asSingleFqName()} has no supertypes to bind to.",
-            context,
           )
           return false
         }
@@ -267,7 +255,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             explicitBindingType.source,
             FirMetroErrors.AGGREGATION_ERROR,
             "Class ${declaration.classId.asSingleFqName()} does not implement explicit bound type ${refClassId.asSingleFqName()}",
-            context,
           )
           return false
         }
@@ -279,7 +266,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             annotation.source,
             FirMetroErrors.AGGREGATION_ERROR,
             "`@$kind`-annotated class ${declaration.symbol.classId.asSingleFqName()} has no supertypes to bind to.",
-            context,
           )
           return false
         } else if (supertypesExcludingAny.size != 1) {
@@ -287,7 +273,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
             annotation.source,
             FirMetroErrors.AGGREGATION_ERROR,
             "`@$kind`-annotated class @${classId.asSingleFqName()} doesn't declare an explicit `bindingType` but has multiple supertypes. You must define an explicit bound type in this scenario.",
-            context,
           )
           return false
         }
@@ -306,7 +291,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
                   annotation.source,
                   FirMetroErrors.AGGREGATION_ERROR,
                   "`@$kind`-annotated class ${declaration.classId.asSingleFqName()} must declare a map key on the class or an explicit bound type but doesn't.",
-                  context,
                 )
               }
             }
@@ -317,7 +301,6 @@ internal object AggregationChecker : FirClassChecker(MppCheckerKind.Common) {
                   explicitBindingType.source,
                   FirMetroErrors.AGGREGATION_ERROR,
                   "`@$kind`-annotated class @${declaration.symbol.classId.asSingleFqName()} must declare a map key but doesn't. Add one on the explicit bound type or the class.",
-                  context,
                 )
               }
             }

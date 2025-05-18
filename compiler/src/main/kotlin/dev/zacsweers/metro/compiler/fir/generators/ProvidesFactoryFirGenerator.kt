@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.computeTypeAttributes
+import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirClassLikeDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
@@ -167,6 +168,7 @@ internal class ProvidesFactoryFirGenerator(session: FirSession) :
   }
 
   // TODO can we get a finer-grained callback other than just per-class?
+  @OptIn(DirectDeclarationsAccess::class)
   override fun getNestedClassifiersNames(
     classSymbol: FirClassSymbol<*>,
     context: NestedClassGenerationContext,
@@ -344,7 +346,7 @@ internal class ProvidesFactorySupertypeGenerator(session: FirSession) :
     typeResolver: TypeResolveService,
   ): List<ConeKotlinType> = emptyList()
 
-  @OptIn(SymbolInternals::class)
+  @OptIn(SymbolInternals::class, DirectDeclarationsAccess::class)
   @ExperimentalSupertypesGenerationApi
   override fun computeAdditionalSupertypesForGeneratedNestedClass(
     klass: FirRegularClass,

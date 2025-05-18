@@ -21,6 +21,7 @@ import dev.zacsweers.metro.compiler.fir.requireContainingClassSymbol
 import dev.zacsweers.metro.compiler.mapToArray
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
@@ -521,6 +522,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
 
   @JvmInline
   value class GraphObject(val classSymbol: FirClassSymbol<*>) {
+    @OptIn(DirectDeclarationsAccess::class)
     fun findCreator(session: FirSession, context: String, log: (String) -> Unit): Creator? {
       val creator =
         classSymbol.declarationSymbols

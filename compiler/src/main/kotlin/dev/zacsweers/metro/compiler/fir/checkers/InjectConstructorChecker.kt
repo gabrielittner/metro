@@ -30,7 +30,7 @@ internal object InjectConstructorChecker : FirClassChecker(MppCheckerKind.Common
       declaration.annotationsIn(session, classIds.injectAnnotations).toList()
 
     val injectedConstructor =
-      declaration.symbol.findInjectConstructor(session, context, reporter, checkClass = false) {
+      declaration.symbol.findInjectConstructor(session, checkClass = false) {
         return
       }
 

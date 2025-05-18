@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.resolve.firClassLike
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.types.isNothing
@@ -160,7 +161,8 @@ internal object DependencyGraphChecker : FirClassChecker(MppCheckerKind.Common) 
           1 -> {
             val parameter = callable.valueParameterSymbols[0]
             val clazz = parameter.resolvedReturnTypeRef.firClassLike(session) ?: continue
-            val isInjected = clazz.symbol.findInjectConstructors(session).isNotEmpty()
+            val classSymbol = clazz.symbol as? FirClassSymbol<*> ?: continue
+            val isInjected = classSymbol.findInjectConstructors(session).isNotEmpty()
 
             if (isInjected) {
               reporter.reportOn(
