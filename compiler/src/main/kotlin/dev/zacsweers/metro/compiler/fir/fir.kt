@@ -717,6 +717,7 @@ internal fun FirClassSymbol<*>.constructType(
 }
 
 // Annoyingly, FirDeclarationOrigin.Plugin does not implement equals()
+// TODO this still doesn't seem to work in 2.2
 internal fun FirBasedSymbol<*>.hasOrigin(vararg keys: GeneratedDeclarationKey): Boolean {
   for (key in keys) {
     if (hasOrigin(key.origin)) return true
