@@ -64,7 +64,8 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
   jvmArgs(
-    "-Dcom.autonomousapps.plugin-under-test.version=${providers.gradleProperty("VERSION_NAME").get()}"
+    "-Dcom.autonomousapps.plugin-under-test.version=${providers.gradleProperty("VERSION_NAME").get()}",
+    "-Ddev.zacsweers.metro.gradle.test.kotlin-version=${libs.versions.kotlin.get()}",
   )
 }
 
