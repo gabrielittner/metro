@@ -5,6 +5,7 @@ Changelog
 --------------
 
 - **Fix:** Don't unnecessarily recompute bindings for roots when populating graphs.
+- **Fix:** Better handle generic assisted factory interfaces.
 - Migrate to new IR `parameters`/`arguments`/`typeArguments` APIs.
 
 0.3.2
