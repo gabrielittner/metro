@@ -45,6 +45,52 @@ public class BoxTestGenerated extends AbstractBoxTest {
   }
 
   @Nested
+  @TestMetadata("compiler-tests/src/test/data/box/cycles")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Cycles {
+    @Test
+    public void testAllFilesPresentInCycles() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/cycles"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("BindsCycleGraph.kt")
+    public void testBindsCycleGraph() {
+      runTest("compiler-tests/src/test/data/box/cycles/BindsCycleGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("CycleGraph.kt")
+    public void testCycleGraph() {
+      runTest("compiler-tests/src/test/data/box/cycles/CycleGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("CycleMapGraph.kt")
+    public void testCycleMapGraph() {
+      runTest("compiler-tests/src/test/data/box/cycles/CycleMapGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("LongCycle.kt")
+    public void testLongCycle() {
+      runTest("compiler-tests/src/test/data/box/cycles/LongCycle.kt");
+    }
+
+    @Test
+    @TestMetadata("SelfCycle.kt")
+    public void testSelfCycle() {
+      runTest("compiler-tests/src/test/data/box/cycles/SelfCycle.kt");
+    }
+
+    @Test
+    @TestMetadata("SmokeTest.kt")
+    public void testSmokeTest() {
+      runTest("compiler-tests/src/test/data/box/cycles/SmokeTest.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("compiler-tests/src/test/data/box/dependencygraph")
   @TestDataPath("$PROJECT_ROOT")
   public class Dependencygraph {
@@ -109,12 +155,34 @@ public class BoxTestGenerated extends AbstractBoxTest {
   }
 
   @Nested
+  @TestMetadata("compiler-tests/src/test/data/box/multibindings")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Multibindings {
+    @Test
+    public void testAllFilesPresentInMultibindings() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/multibindings"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("MultibindingGraphWithWithScopedMapProviderDeps.kt")
+    public void testMultibindingGraphWithWithScopedMapProviderDeps() {
+      runTest("compiler-tests/src/test/data/box/multibindings/MultibindingGraphWithWithScopedMapProviderDeps.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("compiler-tests/src/test/data/box/provides")
   @TestDataPath("$PROJECT_ROOT")
   public class Provides {
     @Test
     public void testAllFilesPresentInProvides() {
       KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/provides"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("CapitalizedProvides.kt")
+    public void testCapitalizedProvides() {
+      runTest("compiler-tests/src/test/data/box/provides/CapitalizedProvides.kt");
     }
 
     @Test

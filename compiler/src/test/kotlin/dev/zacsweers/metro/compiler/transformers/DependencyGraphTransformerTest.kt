@@ -2778,35 +2778,6 @@ class DependencyGraphTransformerTest : MetroCompilerTest() {
   }
 
   @Test
-  fun `cycle smoke test`() {
-    compile(
-      source(
-        """
-            @DependencyGraph
-            interface CyclicalGraphWithClassesBrokenWithProviderBarExposed {
-              val bar: Bar
-
-              @DependencyGraph.Factory
-              fun interface Factory {
-                fun create(@Provides message: String): CyclicalGraphWithClassesBrokenWithProviderBarExposed
-              }
-
-              @Inject
-              class Foo(val barProvider: Provider<Bar>) : Callable<String> {
-                override fun call() = barProvider().call()
-              }
-
-              @Inject
-              class Bar(val foo: Foo, val message: String) : Callable<String> {
-                override fun call() = message
-              }
-            }
-        """
-      )
-    )
-  }
-
-  @Test
   fun `optional deps with back referencing default`() {
     compile(
       source(
@@ -2916,5 +2887,31 @@ class DependencyGraphTransformerTest : MetroCompilerTest() {
       val foo = graph.callFunction<Any>("foo")
       assertThat(foo.callProperty<String>("text")).isEqualTo("default")
     }
+  }
+
+  @Test
+  fun `roots already in the graph are not re-added`() {
+    // Regression test to ensure we don't try to unnecessarily recompute
+    // bindings that are already present in the graph (provided some other way)
+    // This only affects constructor-injected classes as they would return a
+    // non-null value for the binding when it tried to create it
+    compile(
+      source(
+        """
+          @DependencyGraph(scope = AppScope::class)
+          interface ExampleGraph {
+            val value: Dependency
+
+            @DependencyGraph.Factory
+            interface Factory {
+              fun create(@Provides value: Dependency): ExampleGraph
+            }
+          }
+
+          @Inject class Dependency
+        """
+          .trimIndent()
+      )
+    )
   }
 }
