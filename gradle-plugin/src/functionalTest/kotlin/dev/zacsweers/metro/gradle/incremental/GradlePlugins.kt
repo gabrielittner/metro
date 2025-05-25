@@ -11,6 +11,10 @@ object GradlePlugins {
   val metro = Plugin("dev.zacsweers.metro", pluginVersion)
 
   object Kotlin {
-    val jvm = Plugin("org.jetbrains.kotlin.jvm", System.getProperty("dev.zacsweers.metro.gradle.test.kotlin-version"))
+    val jvm =
+      Plugin(
+        "org.jetbrains.kotlin.jvm",
+        System.getProperty("dev.zacsweers.metro.gradle.test.kotlin-version"),
+      )
   }
 }
