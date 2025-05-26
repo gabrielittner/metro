@@ -6,6 +6,12 @@ Changelog
 
 - Update to Kotlin `2.2.0`.
 - Update Gradle plugin to target Kotlin language version to `2.0`.
+
+0.3.3
+-----
+
+_2025-05-26_
+
 - **Enhancement:** Don't unnecessarily wrap `Provider` graph accessors.
 - **Enhancement:** Allow multiple contributed graphs to the same parent graph.
 - **Fix:** Don't unnecessarily recompute bindings for roots when populating graphs.
@@ -13,7 +19,9 @@ Changelog
 - **Fix:** Use fully qualified names when generating hint files to avoid collisions.
 - **Fix:** Support provides functions with capitalized names.
 - **Fix:** Prohibit consuming `Provider<Lazy<...>>` graph accessors.
-- [internal] Migrate to new IR `parameters`/`arguments`/`typeArguments` APIs.
+- [internal] Migrate to new IR `parameters`/`arguments`/`typeArguments` compiler APIs.
+
+Special thanks to [@gabrielittner](https://github.com/gabrielittner) for contributing to this release!
 
 0.3.2
 -----
