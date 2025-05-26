@@ -25,6 +25,7 @@ import dev.zacsweers.metro.compiler.mapToSet
 import dev.zacsweers.metro.compiler.proto.BindsCallableId
 import dev.zacsweers.metro.compiler.proto.DependencyGraphProto
 import dev.zacsweers.metro.compiler.proto.MetroMetadata
+import dev.zacsweers.metro.compiler.suffixIfNot
 import dev.zacsweers.metro.compiler.tracing.Tracer
 import dev.zacsweers.metro.compiler.tracing.traceNested
 import kotlin.collections.component1
@@ -141,7 +142,10 @@ internal class IrGraphGenerator(
             { initializer ->
               providerFields[param.typeKey] =
                 addField(
-                    fieldName = fieldNameAllocator.newName("${param.name}InstanceProvider"),
+                    fieldName =
+                      fieldNameAllocator.newName(
+                        "${param.name}".suffixIfNot("Instance").suffixIfNot("Provider")
+                      ),
                     fieldType = symbols.metroProvider.typeWith(param.type),
                     fieldVisibility = DescriptorVisibilities.PRIVATE,
                   )
@@ -397,7 +401,11 @@ internal class IrGraphGenerator(
 
       // Create fields in dependency-order
       initOrder
+        // Don't generate deferred types here, we'll generate them last
         .filterNot { it.typeKey in deferredFields }
+        // Don't generate fields for anything already provided in provider fields (i.e. bound
+        // instance types)
+        .filterNot { it.typeKey in providerFields }
         .filterNot {
           // We don't generate fields for these even though we do track them in dependencies above,
           // it's just for propagating their aliased type in sorting
@@ -423,7 +431,9 @@ internal class IrGraphGenerator(
           val field =
             addField(
                 fieldName =
-                  fieldNameAllocator.newName(binding.nameHint.decapitalizeUS() + "Provider"),
+                  fieldNameAllocator.newName(
+                    binding.nameHint.decapitalizeUS().suffixIfNot("Provider")
+                  ),
                 fieldType = fieldType,
                 fieldVisibility = DescriptorVisibilities.PRIVATE,
               )
@@ -432,7 +442,7 @@ internal class IrGraphGenerator(
                 initializer =
                   pluginContext.createIrBuilder(symbol).run {
                     val provider =
-                      generateBindingCode(binding, baseGenerationContext).letIf(
+                      generateBindingCode(binding, baseGenerationContext, fieldInitKey = key).letIf(
                         binding.scope != null
                       ) {
                         // If it's scoped, wrap it in double-check
@@ -1236,39 +1246,47 @@ internal class IrGraphGenerator(
             }
 
         val getterContextKey = IrContextualTypeKey.from(metroContext, binding.getter)
-        val lambda =
-          irLambda(
-            context = pluginContext,
-            parent = this.parent,
-            receiverParameter = null,
-            emptyList(),
-            binding.typeKey.type,
-            suspend = false,
-          ) {
-            val invokeGetter =
-              irInvoke(
-                dispatchReceiver =
-                  irGetField(irGet(generationContext.thisReceiver), graphInstanceField),
-                callee = binding.getter.symbol,
-                typeHint = binding.typeKey.type,
-              )
-            val returnExpression =
-              if (getterContextKey.isWrappedInProvider) {
-                irInvoke(invokeGetter, callee = symbols.providerInvoke)
-              } else if (getterContextKey.isWrappedInLazy) {
-                irInvoke(invokeGetter, callee = symbols.lazyGetValue)
-              } else {
-                invokeGetter
-              }
-            +irReturn(returnExpression)
-          }
-        irInvoke(
-          dispatchReceiver = null,
-          callee = symbols.metroProviderFunction,
-          typeHint = binding.typeKey.type.wrapInProvider(symbols.metroProvider),
-          typeArgs = listOf(binding.typeKey.type),
-          args = listOf(lambda),
-        )
+
+        val invokeGetter =
+          irInvoke(
+            dispatchReceiver =
+              irGetField(irGet(generationContext.thisReceiver), graphInstanceField),
+            callee = binding.getter.symbol,
+            typeHint = binding.typeKey.type,
+          )
+
+        if (getterContextKey.isLazyWrappedInProvider) {
+          binding.getter.reportError("Provider<Lazy<T>> accessors are not supported.")
+          exitProcessing()
+        } else if (getterContextKey.isWrappedInProvider) {
+          // It's already a provider
+          invokeGetter
+        } else {
+          val lambda =
+            irLambda(
+              context = pluginContext,
+              parent = this.parent,
+              receiverParameter = null,
+              emptyList(),
+              binding.typeKey.type,
+              suspend = false,
+            ) {
+              val returnExpression =
+                if (getterContextKey.isWrappedInLazy) {
+                  irInvoke(invokeGetter, callee = symbols.lazyGetValue)
+                } else {
+                  invokeGetter
+                }
+              +irReturn(returnExpression)
+            }
+          irInvoke(
+            dispatchReceiver = null,
+            callee = symbols.metroProviderFunction,
+            typeHint = binding.typeKey.type.wrapInProvider(symbols.metroProvider),
+            typeArgs = listOf(binding.typeKey.type),
+            args = listOf(lambda),
+          )
+        }
       }
     }
   }
