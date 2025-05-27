@@ -6,7 +6,7 @@ Changelog
 
 - Update to Kotlin `2.2.0`.
 - Update Gradle plugin to target Kotlin language version to `2.0`.
-- 
+
 0.3.4
 -----
 
