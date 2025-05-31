@@ -11,6 +11,7 @@ import dev.zacsweers.metro.compiler.fir.buildSimpleAnnotation
 import dev.zacsweers.metro.compiler.fir.callableDeclarations
 import dev.zacsweers.metro.compiler.fir.classIds
 import dev.zacsweers.metro.compiler.fir.constructType
+import dev.zacsweers.metro.compiler.fir.copyTypeParametersFrom
 import dev.zacsweers.metro.compiler.fir.findInjectConstructors
 import dev.zacsweers.metro.compiler.fir.hasOrigin
 import dev.zacsweers.metro.compiler.fir.isAnnotatedInject
@@ -29,6 +30,7 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.caches.FirCache
 import org.jetbrains.kotlin.fir.caches.firCachesFactory
+import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.hasAnnotation
 import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
@@ -115,10 +117,6 @@ internal class InjectedClassFirGenerator(session: FirSession) :
    *
    * Annotations and `suspend` modifiers will be copied over as well.
    */
-  // TODO
-  //  private works
-  //  visibility of params and return type
-  //  no extension receivers
   @ExperimentalTopLevelDeclarationsGenerationApi
   override fun getTopLevelClassIds(): Set<ClassId> {
     if (!session.metroFirBuiltIns.options.enableTopLevelFunctionInjection) return emptySet()
@@ -137,7 +135,6 @@ internal class InjectedClassFirGenerator(session: FirSession) :
             add(buildInjectAnnotation())
             add(buildInjectedFunctionClassAnnotation(function.callableId))
             annotations.qualifier?.fir?.let(::add)
-            annotations.scope?.fir?.let(::add)
             if (annotations.isComposable) {
               add(buildStableAnnotation())
             }
@@ -199,11 +196,13 @@ internal class InjectedClassFirGenerator(session: FirSession) :
         if (isConstructorInjected) {
           append(" (constructor)")
           if (constructorParameters.isNotEmpty()) {
-            append(" constructorParams=$constructorParameters")
+            append(" constructorParams=")
+            append(constructorParameters)
           }
         }
         if (injectedMembersParamsByMemberKey.isNotEmpty()) {
-          append(" injectedMembers=${injectedMembersParamsByMemberKey.keys}")
+          append(" injectedMembers=")
+          append(injectedMembersParamsByMemberKey.keys)
         }
       }
     }
@@ -305,6 +304,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
     }
   }
 
+  @OptIn(DirectDeclarationsAccess::class)
   override fun getNestedClassifiersNames(
     classSymbol: FirClassSymbol<*>,
     context: NestedClassGenerationContext,
@@ -407,14 +407,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
             Keys.InjectConstructorFactoryClassDeclaration,
             classKind = classKind,
           ) {
-            // TODO what about backward-referencing type params?
-            injectedClass.classSymbol.typeParameterSymbols.forEach { typeParameter ->
-              typeParameter(typeParameter.name, typeParameter.variance, key = Keys.Default) {
-                if (typeParameter.isBound) {
-                  typeParameter.resolvedBounds.forEach { bound -> bound(bound.coneType) }
-                }
-              }
-            }
+            copyTypeParametersFrom(injectedClass.classSymbol, session)
 
             if (!injectedClass.isAssisted) {
               superType { typeParameterRefs ->
@@ -433,14 +426,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
         val injectedClass = membersInjectorClassIdsToInjectedClass[classId] ?: return null
 
         createNestedClass(owner, name.capitalizeUS(), Keys.MembersInjectorClassDeclaration) {
-            // TODO what about backward-referencing type params?
-            injectedClass.classSymbol.typeParameterSymbols.forEach { typeParameter ->
-              typeParameter(typeParameter.name, typeParameter.variance, key = Keys.Default) {
-                if (typeParameter.isBound) {
-                  typeParameter.resolvedBounds.forEach { bound -> bound(bound.coneType) }
-                }
-              }
-            }
+            copyTypeParametersFrom(injectedClass.classSymbol, session)
 
             superType { typeParameterRefs ->
               Symbols.ClassIds.MembersInjector.constructClassLikeType(
@@ -539,7 +525,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
                   //  .withArguments(it.mapToArray(FirTypeParameterRef::toConeType))
                   .wrapInProviderIfNecessary(session, Symbols.ClassIds.metroProvider)
               },
-              key = Keys.ValueParameter,
+              key = Keys.RegularParameter,
             )
           }
         }
@@ -614,7 +600,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
                 // TODO need to remap these
                 //  .withArguments(it.mapToArray(FirTypeParameterRef::toConeType))
               },
-              key = Keys.ValueParameter,
+              key = Keys.RegularParameter,
             )
           }
         }
@@ -662,7 +648,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
                   valueParameter(
                     assistedParameter.name,
                     assistedParameter.symbol.resolvedReturnType,
-                    key = Keys.ValueParameter,
+                    key = Keys.RegularParameter,
                   )
                 }
               }
@@ -735,19 +721,13 @@ internal class InjectedClassFirGenerator(session: FirSession) :
                 returnType = session.builtinTypes.unitType.coneType,
               ) {
                 // Add any type args if necessary
-                injectedClass.classSymbol.typeParameterSymbols.forEach { typeParameter ->
-                  typeParameter(typeParameter.name, typeParameter.variance, key = Keys.Default) {
-                    if (typeParameter.isBound) {
-                      typeParameter.resolvedBounds.forEach { bound -> bound(bound.coneType) }
-                    }
-                  }
-                }
+                copyTypeParametersFrom(injectedClass.classSymbol, session)
 
                 // Add instance param
                 valueParameter(
                   Symbols.Names.instance,
                   typeProvider = injectedClass.classSymbol::constructType,
-                  key = Keys.ValueParameter, // Or should this be instance?
+                  key = Keys.RegularParameter, // Or should this be instance?
                 )
                 // Add its parameters
                 for (param in parameters) {
@@ -777,7 +757,7 @@ internal class InjectedClassFirGenerator(session: FirSession) :
                         resolvedType.withArguments(finalTypeParameters.toTypedArray())
                       }
                     },
-                    key = Keys.ValueParameter,
+                    key = Keys.RegularParameter,
                   )
                 }
               }

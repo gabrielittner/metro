@@ -3,17 +3,19 @@
 package dev.zacsweers.metro.compiler.ir.parameters
 
 import dev.zacsweers.metro.compiler.Symbols
+import dev.zacsweers.metro.compiler.ir.IrBindingStack
 import dev.zacsweers.metro.compiler.ir.IrContextualTypeKey
 import dev.zacsweers.metro.compiler.ir.IrTypeKey
 import dev.zacsweers.metro.compiler.ir.annotationsIn
 import dev.zacsweers.metro.compiler.ir.constArgumentOfTypeAt
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.name.Name
 
 internal sealed interface Parameter : Comparable<Parameter> {
-  val kind: Kind
+  val kind: IrParameterKind
   val name: Name
   val originalName: Name
   // TODO make this just alias to contextualtypekey?
@@ -36,6 +38,7 @@ internal sealed interface Parameter : Comparable<Parameter> {
   val hasDefault: Boolean
   val location: CompilerMessageSourceLocation?
   val ir: IrValueParameter
+  val bindingStackEntry: IrBindingStack.Entry
 
   override fun compareTo(other: Parameter): Int = COMPARATOR.compare(this, other)
 
@@ -56,13 +59,6 @@ internal sealed interface Parameter : Comparable<Parameter> {
         )
       }
     }
-  }
-
-  enum class Kind {
-    INSTANCE,
-    EXTENSION_RECEIVER,
-    VALUE,
-    //    CONTEXT_PARAMETER, // Coming soon
   }
 
   companion object {

@@ -3,8 +3,10 @@
 package dev.zacsweers.metro.compiler
 
 import dev.zacsweers.metro.compiler.fir.MetroFirExtensionRegistrar
+import dev.zacsweers.metro.compiler.interop.Ksp2AdditionalSourceProvider
 import dev.zacsweers.metro.compiler.interop.configureAnvilAnnotations
 import dev.zacsweers.metro.compiler.interop.configureDaggerAnnotations
+import dev.zacsweers.metro.compiler.interop.configureDaggerInterop
 import dev.zacsweers.metro.compiler.ir.MetroIrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
@@ -30,6 +32,8 @@ fun TestConfigurationBuilder.configurePlugin() {
 
   configureAnvilAnnotations()
   configureDaggerAnnotations()
+  configureDaggerInterop()
+  useAdditionalSourceProviders(::Ksp2AdditionalSourceProvider)
 }
 
 class MetroExtensionRegistrarConfigurator(testServices: TestServices) :
@@ -41,11 +45,18 @@ class MetroExtensionRegistrarConfigurator(testServices: TestServices) :
   ) {
     val transformProvidersToPrivate =
       MetroDirectives.DISABLE_TRANSFORM_PROVIDERS_TO_PRIVATE !in module.directives
+    val addDaggerAnnotations =
+      MetroDirectives.WITH_DAGGER in module.directives ||
+        MetroDirectives.ENABLE_DAGGER_KSP in module.directives
+
     val options =
       MetroOptions(
+        enableDaggerRuntimeInterop = MetroDirectives.ENABLE_DAGGER_KSP in module.directives,
         generateAssistedFactories =
           MetroDirectives.GENERATE_ASSISTED_FACTORIES in module.directives,
         transformProvidersToPrivate = transformProvidersToPrivate,
+        enableTopLevelFunctionInjection =
+          MetroDirectives.ENABLE_TOP_LEVEL_FUNCTION_INJECTION in module.directives,
         publicProviderSeverity =
           if (transformProvidersToPrivate) {
             MetroOptions.DiagnosticSeverity.NONE
@@ -58,7 +69,7 @@ class MetroExtensionRegistrarConfigurator(testServices: TestServices) :
             if (MetroDirectives.WITH_ANVIL in module.directives) {
               add(ClassId.fromString("com/squareup/anvil/annotations/MergeComponent"))
             }
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("dagger/Component"))
             }
           },
@@ -67,7 +78,7 @@ class MetroExtensionRegistrarConfigurator(testServices: TestServices) :
             if (MetroDirectives.WITH_ANVIL in module.directives) {
               add(ClassId.fromString("com/squareup/anvil/annotations/MergeComponent.Factory"))
             }
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("dagger/Component.Factory"))
             }
           },
@@ -91,33 +102,34 @@ class MetroExtensionRegistrarConfigurator(testServices: TestServices) :
           },
         customInjectAnnotations =
           buildSet {
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("javax/inject/Inject"))
               add(ClassId.fromString("jakarta/inject/Inject"))
             }
           },
         customProviderTypes =
           buildSet {
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("javax/inject/Provider"))
               add(ClassId.fromString("jakarta/inject/Provider"))
+              add(ClassId.fromString("dagger/internal/Provider"))
             }
           },
         customProvidesAnnotations =
           buildSet {
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("dagger/Provides"))
             }
           },
         customBindsAnnotations =
           buildSet {
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("dagger/Binds"))
             }
           },
         customLazyTypes =
           buildSet {
-            if (MetroDirectives.WITH_DAGGER in module.directives) {
+            if (addDaggerAnnotations) {
               add(ClassId.fromString("dagger/Lazy"))
             }
           },

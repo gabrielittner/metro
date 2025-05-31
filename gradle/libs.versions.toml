@@ -14,33 +14,35 @@
 
 [versions]
 agp = "8.9.2"
-androidx-lint-gradle = "1.0.0-alpha04"
+androidx-lint-gradle = "1.0.0-alpha05"
 anvil = "0.4.1"
 atomicfu = "0.27.0"
 autoService = "1.1.1"
-circuit = "0.27.1"
-compose-jb = "1.8.0"
+circuit = "0.28.0"
+classgraph = "4.8.179"
+compose-jb = "1.8.1"
 dagger = "2.56.2"
 gjf = "1.27.0"
 jdk = "23"
-junit5 = "5.12.2"
+junit5 = "5.13.0"
 jvmTarget = "11"
 kct = "0.7.1"
-kotlin = "2.1.20"
+kotlin = "2.2.0-RC"
 kotlinInject = "0.8.0"
-kotlinInject-anvil = "0.1.5"
+kotlinInject-anvil = "0.1.6"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.8.1"
-ksp = "2.1.20-2.0.1"
-ktfmt = "0.54"
+ksp = "2.2.0-RC-2.0.1"
+ktfmt = "0.55"
 ktor = "3.1.3"
-okhttp = "5.0.0-alpha.14"
-okio = "3.11.0"
+okhttp = "5.0.0-alpha.16"
+okio = "3.12.0"
 pluginId = "dev.zacsweers.metro.compiler"
 wire = "5.3.1"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 android-lint = { id = "com.android.lint", version.ref = "agp" }
 anvil = { id = "dev.zacsweers.anvil", version.ref = "anvil" }
 atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "atomicfu" }
@@ -55,10 +57,10 @@ binaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compatibilit
 buildConfig = { id = "com.github.gmazzo.buildconfig", version = "5.6.5" }
 dokka = { id = "org.jetbrains.dokka", version = "2.0.0" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.31.0" }
-poko = { id = "dev.drewhamilton.poko", version = "0.18.6" }
-shadow = { id = "com.gradleup.shadow", version = "9.0.0-beta13" }
-spotless = { id = "com.diffplug.spotless", version = "7.0.3" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.32.0" }
+poko = { id = "dev.drewhamilton.poko", version = "0.18.7" }
+shadow = { id = "com.gradleup.shadow", version = "9.0.0-beta15" }
+spotless = { id = "com.diffplug.spotless", version = "7.0.4" }
 testkit = { id = "com.autonomousapps.testkit", version = "0.13" }
 wire = { id = "com.squareup.wire", version.ref = "wire" }
 
@@ -66,9 +68,9 @@ wire = { id = "com.squareup.wire", version.ref = "wire" }
 androidx-activity = "androidx.activity:activity-compose:1.10.1"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.0"
 androidx-compose-material3 = "androidx.compose.material3:material3:1.3.2"
-androidx-compose-materialNavigation = "androidx.compose.material:material-navigation:1.8.1"
+androidx-compose-materialNavigation = "androidx.compose.material:material-navigation:1.8.2"
 androidx-core = "androidx.core:core-ktx:1.16.0"
-androidx-fragment = "androidx.fragment:fragment-ktx:1.8.6"
+androidx-fragment = "androidx.fragment:fragment-ktx:1.8.7"
 androidx-lifecycle-runtime-compose = "androidx.lifecycle:lifecycle-runtime-compose:2.9.0"
 androidx-lint-gradle = {  module = "androidx.lint:lint-gradle", version.ref = "androidx-lint-gradle" }
 androidx-material3 = "com.google.android.material:material:1.12.0"
@@ -83,6 +85,7 @@ autoService-ksp = { module = "dev.zacsweers.autoservice:auto-service-ksp", versi
 
 atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 
+classgraph = { module = "io.github.classgraph:classgraph", version.ref = "classgraph" }
 clikt = "com.github.ajalt.clikt:clikt:5.0.3"
 
 circuit-codegen = { module = "com.slack.circuit:circuit-codegen", version.ref = "circuit" }
@@ -151,6 +154,10 @@ junit = { module = "junit:junit", version = "4.13.2" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit5" }
+ksp-symbolProcessing = { module = "com.google.devtools.ksp:symbol-processing", version.ref = "ksp" }
+ksp-symbolProcessing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+ksp-symbolProcessing-commonDeps = { module = "com.google.devtools.ksp:symbol-processing-common-deps", version.ref = "ksp" }
+ksp-symbolProcessing-aaEmbeddable = { module = "com.google.devtools.ksp:symbol-processing-aa-embeddable", version.ref = "ksp" }
 testkit-support = { module =  "com.autonomousapps:gradle-testkit-support", version = "0.18"}
 testkit-truth = { module =  "com.autonomousapps:gradle-testkit-truth", version = "1.6.1"}
 truth = { module = "com.google.truth:truth", version = "1.4.4" }

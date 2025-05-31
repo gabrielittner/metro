@@ -23,11 +23,9 @@ import dev.zacsweers.metro.compiler.ir.parameters.Parameters
 import dev.zacsweers.metro.compiler.ir.parameters.memberInjectParameters
 import dev.zacsweers.metro.compiler.ir.parametersAsProviderArguments
 import dev.zacsweers.metro.compiler.ir.rawTypeOrNull
+import dev.zacsweers.metro.compiler.ir.regularParameters
 import dev.zacsweers.metro.compiler.ir.requireSimpleFunction
 import dev.zacsweers.metro.compiler.ir.thisReceiverOrFail
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.set
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irGet
@@ -145,7 +143,7 @@ internal class MembersInjectorTransformer(context: IrMetroContext) : IrMetroCont
 
     val allParameters =
       injectedMembersByClass.values.flatMap {
-        it.flatMap(Parameters<MembersInjectParameter>::valueParameters)
+        it.flatMap(Parameters<MembersInjectParameter>::regularParameters)
       }
 
     val constructorParametersToFields = assignConstructorParamsToFields(ctor, injectorClass)
@@ -173,7 +171,8 @@ internal class MembersInjectorTransformer(context: IrMetroContext) : IrMetroCont
               Parameters.empty<MembersInjectParameter>().callableId,
               null,
               null,
-              it.valueParameters,
+              it.regularParameters,
+              it.contextParameters,
               null,
             )
           },
@@ -184,13 +183,13 @@ internal class MembersInjectorTransformer(context: IrMetroContext) : IrMetroCont
     // Implement static inject{name}() for each declared callable in this class
     for ((function, params) in declaredInjectFunctions) {
       function.apply {
-        val instanceParam = valueParameters[0]
+        val instanceParam = regularParameters[0]
 
         body =
           pluginContext.createIrBuilder(symbol).run {
             val bodyExpression: IrExpression =
               if (params.isProperty) {
-                val value = valueParameters[1]
+                val value = regularParameters[1]
                 val irField = params.irProperty!!.backingField
                 if (irField == null) {
                   irInvoke(
@@ -205,7 +204,7 @@ internal class MembersInjectorTransformer(context: IrMetroContext) : IrMetroCont
                 irInvoke(
                   irGet(instanceParam),
                   callee = params.ir!!.symbol,
-                  args = valueParameters.drop(1).map { irGet(it) },
+                  args = regularParameters.drop(1).map { irGet(it) },
                 )
               }
             irExprBodySafe(symbol, bodyExpression)
@@ -237,7 +236,7 @@ internal class MembersInjectorTransformer(context: IrMetroContext) : IrMetroCont
         pluginContext.createIrBuilder(symbol).irBlockBody {
           addMemberInjection(
             context = metroContext,
-            instanceReceiver = valueParameters[0],
+            instanceReceiver = regularParameters[0],
             injectorReceiver = dispatchReceiverParameter!!,
             injectFunctions = injectFunctions,
             parametersToFields = sourceParametersToFields,

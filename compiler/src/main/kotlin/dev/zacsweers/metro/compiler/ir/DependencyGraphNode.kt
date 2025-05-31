@@ -12,11 +12,13 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.typeWith
 
 // Represents an object graph's structure and relationships
 internal data class DependencyGraphNode(
   val sourceGraph: IrClass,
+  val supertypes: List<IrType>,
   val isExtendable: Boolean,
   val includedGraphNodes: Map<IrTypeKey, DependencyGraphNode>,
   val contributedGraphs: Map<IrTypeKey, MetroSimpleFunction>,
@@ -32,7 +34,9 @@ internal data class DependencyGraphNode(
   val creator: Creator?,
   val extendedGraphNodes: Map<IrTypeKey, DependencyGraphNode>,
   val typeKey: IrTypeKey = IrTypeKey(sourceGraph.typeWith()),
-  val proto: DependencyGraphProto? = null,
+  // TODO not ideal that this is mutable/lateinit but welp
+  //  maybe we track these protos separately somewhere?
+  var proto: DependencyGraphProto? = null,
 ) {
 
   val publicAccessors by unsafeLazy { accessors.mapToSet { (_, contextKey) -> contextKey.typeKey } }

@@ -45,6 +45,68 @@ public class BoxTestGenerated extends AbstractBoxTest {
   }
 
   @Nested
+  @TestMetadata("compiler-tests/src/test/data/box/contributesgraphextension")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Contributesgraphextension {
+    @Test
+    public void testAllFilesPresentInContributesgraphextension() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/contributesgraphextension"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("ContributingMultipleGraphsToSameParent.kt")
+    public void testContributingMultipleGraphsToSameParent() {
+      runTest("compiler-tests/src/test/data/box/contributesgraphextension/ContributingMultipleGraphsToSameParent.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("compiler-tests/src/test/data/box/cycles")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Cycles {
+    @Test
+    public void testAllFilesPresentInCycles() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/cycles"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("BindsCycleGraph.kt")
+    public void testBindsCycleGraph() {
+      runTest("compiler-tests/src/test/data/box/cycles/BindsCycleGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("CycleGraph.kt")
+    public void testCycleGraph() {
+      runTest("compiler-tests/src/test/data/box/cycles/CycleGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("CycleMapGraph.kt")
+    public void testCycleMapGraph() {
+      runTest("compiler-tests/src/test/data/box/cycles/CycleMapGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("LongCycle.kt")
+    public void testLongCycle() {
+      runTest("compiler-tests/src/test/data/box/cycles/LongCycle.kt");
+    }
+
+    @Test
+    @TestMetadata("SelfCycle.kt")
+    public void testSelfCycle() {
+      runTest("compiler-tests/src/test/data/box/cycles/SelfCycle.kt");
+    }
+
+    @Test
+    @TestMetadata("SmokeTest.kt")
+    public void testSmokeTest() {
+      runTest("compiler-tests/src/test/data/box/cycles/SmokeTest.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("compiler-tests/src/test/data/box/dependencygraph")
   @TestDataPath("$PROJECT_ROOT")
   public class Dependencygraph {
@@ -54,9 +116,47 @@ public class BoxTestGenerated extends AbstractBoxTest {
     }
 
     @Test
+    @TestMetadata("GraphFactoriesSupportGenericProviders.kt")
+    public void testGraphFactoriesSupportGenericProviders() {
+      runTest("compiler-tests/src/test/data/box/dependencygraph/GraphFactoriesSupportGenericProviders.kt");
+    }
+
+    @Test
     @TestMetadata("MultibindingGraphWithWithScopedSetDeps.kt")
     public void testMultibindingGraphWithWithScopedSetDeps() {
       runTest("compiler-tests/src/test/data/box/dependencygraph/MultibindingGraphWithWithScopedSetDeps.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("compiler-tests/src/test/data/box/interop")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Interop {
+    @Test
+    public void testAllFilesPresentInInterop() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/interop"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Nested
+    @TestMetadata("compiler-tests/src/test/data/box/interop/dagger")
+    @TestDataPath("$PROJECT_ROOT")
+    public class Dagger {
+      @Test
+      public void testAllFilesPresentInDagger() {
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/interop/dagger"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+      }
+
+      @Test
+      @TestMetadata("DaggerFactoryClassCanBeLoaded.kt")
+      public void testDaggerFactoryClassCanBeLoaded() {
+        runTest("compiler-tests/src/test/data/box/interop/dagger/DaggerFactoryClassCanBeLoaded.kt");
+      }
+
+      @Test
+      @TestMetadata("DaggerFactoryClassCanBeLoadedJakarta.kt")
+      public void testDaggerFactoryClassCanBeLoadedJakarta() {
+        runTest("compiler-tests/src/test/data/box/interop/dagger/DaggerFactoryClassCanBeLoadedJakarta.kt");
+      }
     }
   }
 
@@ -77,6 +177,22 @@ public class BoxTestGenerated extends AbstractBoxTest {
   }
 
   @Nested
+  @TestMetadata("compiler-tests/src/test/data/box/multibindings")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Multibindings {
+    @Test
+    public void testAllFilesPresentInMultibindings() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/box/multibindings"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("MultibindingGraphWithWithScopedMapProviderDeps.kt")
+    public void testMultibindingGraphWithWithScopedMapProviderDeps() {
+      runTest("compiler-tests/src/test/data/box/multibindings/MultibindingGraphWithWithScopedMapProviderDeps.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("compiler-tests/src/test/data/box/provides")
   @TestDataPath("$PROJECT_ROOT")
   public class Provides {
@@ -86,9 +202,21 @@ public class BoxTestGenerated extends AbstractBoxTest {
     }
 
     @Test
+    @TestMetadata("CapitalizedProvides.kt")
+    public void testCapitalizedProvides() {
+      runTest("compiler-tests/src/test/data/box/provides/CapitalizedProvides.kt");
+    }
+
+    @Test
     @TestMetadata("SimpleFunctionProvider.kt")
     public void testSimpleFunctionProvider() {
       runTest("compiler-tests/src/test/data/box/provides/SimpleFunctionProvider.kt");
+    }
+
+    @Test
+    @TestMetadata("TransitiveSuccessorScope.kt")
+    public void testTransitiveSuccessorScope() {
+      runTest("compiler-tests/src/test/data/box/provides/TransitiveSuccessorScope.kt");
     }
   }
 }

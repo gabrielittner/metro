@@ -6,6 +6,7 @@ import com.intellij.testFramework.TestDataPath;
 import org.jetbrains.kotlin.test.util.KtTestUtil;
 import org.jetbrains.kotlin.test.TargetBackend;
 import org.jetbrains.kotlin.test.TestMetadata;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -22,8 +23,86 @@ public class IrDumpTestGenerated extends AbstractIrDumpTest {
   }
 
   @Test
+  @TestMetadata("MultibindingsHaveConsistentOrderAcrossContributedGraph.kt")
+  public void testMultibindingsHaveConsistentOrderAcrossContributedGraph() {
+    runTest("compiler-tests/src/test/data/dump/ir/MultibindingsHaveConsistentOrderAcrossContributedGraph.kt");
+  }
+
+  @Test
   @TestMetadata("scratch.kt")
   public void testScratch() {
     runTest("compiler-tests/src/test/data/dump/ir/scratch.kt");
+  }
+
+  @Nested
+  @TestMetadata("compiler-tests/src/test/data/dump/ir/aggregation")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Aggregation {
+    @Test
+    public void testAllFilesPresentInAggregation() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/dump/ir/aggregation"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("ContributorsWithSameSimpleNames.kt")
+    public void testContributorsWithSameSimpleNames() {
+      runTest("compiler-tests/src/test/data/dump/ir/aggregation/ContributorsWithSameSimpleNames.kt");
+    }
+
+    @Test
+    @TestMetadata("MultipleContributionsOnlyProduceOneHintFile.kt")
+    public void testMultipleContributionsOnlyProduceOneHintFile() {
+      runTest("compiler-tests/src/test/data/dump/ir/aggregation/MultipleContributionsOnlyProduceOneHintFile.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("compiler-tests/src/test/data/dump/ir/cycles")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Cycles {
+    @Test
+    public void testAllFilesPresentInCycles() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/dump/ir/cycles"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("BindsCycleGraph.kt")
+    public void testBindsCycleGraph() {
+      runTest("compiler-tests/src/test/data/dump/ir/cycles/BindsCycleGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("CycleGraph.kt")
+    public void testCycleGraph() {
+      runTest("compiler-tests/src/test/data/dump/ir/cycles/CycleGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("CycleMapGraph.kt")
+    public void testCycleMapGraph() {
+      runTest("compiler-tests/src/test/data/dump/ir/cycles/CycleMapGraph.kt");
+    }
+
+    @Test
+    @TestMetadata("SelfCycle.kt")
+    public void testSelfCycle() {
+      runTest("compiler-tests/src/test/data/dump/ir/cycles/SelfCycle.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("compiler-tests/src/test/data/dump/ir/dependencygraph")
+  @TestDataPath("$PROJECT_ROOT")
+  public class Dependencygraph {
+    @Test
+    public void testAllFilesPresentInDependencygraph() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler-tests/src/test/data/dump/ir/dependencygraph"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+    }
+
+    @Test
+    @TestMetadata("GraphAccessors.kt")
+    public void testGraphAccessors() {
+      runTest("compiler-tests/src/test/data/dump/ir/dependencygraph/GraphAccessors.kt");
+    }
   }
 }

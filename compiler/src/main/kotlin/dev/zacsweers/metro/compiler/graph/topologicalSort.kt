@@ -18,6 +18,7 @@ package dev.zacsweers.metro.compiler.graph
 
 import dev.zacsweers.metro.compiler.tracing.Tracer
 import dev.zacsweers.metro.compiler.tracing.traceNested
+import java.util.PriorityQueue
 
 /**
  * Returns a new list where each element is preceded by its results in [sourceToTarget]. The first
@@ -27,7 +28,7 @@ import dev.zacsweers.metro.compiler.tracing.traceNested
  * - Add [onMissing] check
  * - Add [onCycle] for customizing how cycle errors are handled
  * - Add [isDeferrable] for indicating deferrable dependencies
- * - Implementation modified to instead use a Tarjan-processed SSC DAG
+ * - Implementation modified to instead use a Tarjan-processed SCC DAG
  *
  * @param sourceToTarget a function that returns nodes that should precede the argument in the
  *   result.
@@ -35,7 +36,7 @@ import dev.zacsweers.metro.compiler.tracing.traceNested
  *   https://github.com/cashapp/zipline/blob/30ca7c9d782758737e9d20e8d9505930178d1992/zipline/src/hostMain/kotlin/app/cash/zipline/internal/topologicalSort.kt">Adapted
  *   from Zipline's implementation</a>
  */
-internal fun <T> Iterable<T>.topologicalSort(
+internal fun <T : Comparable<T>> Iterable<T>.topologicalSort(
   sourceToTarget: (T) -> Iterable<T>,
   onCycle: (List<T>) -> Nothing = { cycle ->
     val message = buildString {
@@ -77,7 +78,7 @@ internal fun <T> Iterable<T>.buildFullAdjacency(
   val adjacency = mutableMapOf<T, MutableList<T>>()
 
   for (key in set) {
-    val listForVertex = adjacency.getOrPut(key, ::mutableListOf)
+    val dependencies = adjacency.getOrPut(key, ::mutableListOf)
 
     for (targetKey in sourceToTarget(key)) {
       if (targetKey !in set) {
@@ -86,7 +87,7 @@ internal fun <T> Iterable<T>.buildFullAdjacency(
         // If we got here, this missing target is allowable (i.e. a default value). Just ignore it
         continue
       }
-      listForVertex += targetKey
+      dependencies += targetKey
     }
   }
   return adjacency
@@ -95,9 +96,9 @@ internal fun <T> Iterable<T>.buildFullAdjacency(
 /**
  * Builds the full adjacency list.
  * * Keeps all edges (strict _and_ deferrable).
- * * Prunes edges whose target isn’t in [bindings], delegating the decision to [onMissing].
+ * * Prunes edges whose target isn't in [bindings], delegating the decision to [onMissing].
  */
-internal fun <TypeKey, Binding> buildFullAdjacency(
+internal fun <TypeKey : Comparable<TypeKey>, Binding> buildFullAdjacency(
   bindings: Map<TypeKey, Binding>,
   dependenciesOf: (Binding) -> Iterable<TypeKey>,
   onMissing: (source: TypeKey, missing: TypeKey) -> Unit,
@@ -118,11 +119,40 @@ internal data class TopoSortResult<T>(val sortedKeys: List<T>, val deferredTypes
  * Returns the vertices in a valid topological order. Every edge in [fullAdjacency] is respected;
  * strict cycles throw, breakable cycles (those containing a deferrable edge) are deferred.
  *
+ * Two-phase binding graph validation pipeline:
+ * ```
+ * Binding Graph
+ *      │
+ *      ▼
+ * ┌─────────────────────┐
+ * │  Phase 1: Tarjan    │
+ * │  ┌─────────────────┐│
+ * │  │ Find SCCs       ││  ◄─── Detects cycles
+ * │  │ Classify cycles ││  ◄─── Hard vs Soft
+ * │  │ Build comp DAG  ││  ◄─── collapse the SCCs → nodes
+ * │  └─────────────────┘│
+ * └─────────────────────┘
+ *      │
+ *      ▼
+ * ┌──────────────────────┐
+ * │  Phase 2: Kahn       │
+ * │  ┌──────────────────┐│
+ * │  │ Topo sort DAG    ││  ◄─── Deterministic order
+ * │  │ Expand components││  ◄─── Components → vertices
+ * │  └──────────────────┘│
+ * └──────────────────────┘
+ *      │
+ *      ▼
+ * TopoSortResult
+ * ├─ sortedKeys (dependency order)
+ * └─ deferredTypes (Lazy/Provider)
+ * ```
+ *
  * @param fullAdjacency outgoing‑edge map (every vertex key must be present)
- * @param isDeferrable predicate for “edge may break a cycle”
+ * @param isDeferrable predicate for "edge may break a cycle"
  * @param onCycle called with the offending cycle if no deferrable edge
  */
-internal fun <V> topologicalSort(
+internal fun <V : Comparable<V>> topologicalSort(
   fullAdjacency: Map<V, List<V>>,
   isDeferrable: (from: V, to: V) -> Boolean,
   onCycle: (List<V>) -> Nothing,
@@ -132,7 +162,7 @@ internal fun <V> topologicalSort(
 
   // Collapse the graph into strongly‑connected components
   val (components, componentOf) =
-    parentTracer.traceNested("Compute SSCs") { fullAdjacency.computeStronglyConnectedComponents() }
+    parentTracer.traceNested("Compute SCCs") { fullAdjacency.computeStronglyConnectedComponents() }
 
   // Check for cycles
   parentTracer.traceNested("Check for cycles") {
@@ -184,7 +214,10 @@ internal fun <V> topologicalSort(
 
   val sortedKeys =
     parentTracer.traceNested("Expand components") {
-      componentOrder.flatMap { compId -> components[compId].vertices }
+      componentOrder.flatMap { id ->
+        // All these components' vertices are equal, so fallback to their natural sorting order
+        components[id].vertices.sorted()
+      }
     }
   return TopoSortResult(
     // Expand each component back into its original vertices
@@ -207,7 +240,7 @@ internal data class Component<V>(val id: Int, val vertices: MutableList<V> = mut
  *   href="https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm">Tarjan's
  *   algorithm</a>
  */
-internal fun <V> Map<V, List<V>>.computeStronglyConnectedComponents():
+internal fun <V : Comparable<V>> Map<V, List<V>>.computeStronglyConnectedComponents():
   Pair<List<Component<V>>, Map<V, Int>> {
   var nextIndex = 0
   var nextComponentId = 0
@@ -236,7 +269,7 @@ internal fun <V> Map<V, List<V>>.computeStronglyConnectedComponents():
     stack += v
     onStack += v
 
-    for (w in this[v].orEmpty()) {
+    for (w in this[v].orEmpty().sorted()) {
       if (w !in indexMap) {
         // Successor w has not yet been visited; recurse on it
         strongConnect(w)
@@ -266,7 +299,8 @@ internal fun <V> Map<V, List<V>>.computeStronglyConnectedComponents():
     }
   }
 
-  for (v in keys) {
+  // Sorted for determinism
+  for (v in keys.sorted()) {
     if (v !in indexMap) {
       strongConnect(v)
     }
@@ -301,7 +335,7 @@ private fun <V> buildComponentDag(
       // dependent side
       val dependentComp = componentOf.getValue(toVertex)
       if (prereqComp != dependentComp) {
-        // Reverse the arrow so Kahn sees “prereq → dependent”
+        // Reverse the arrow so Kahn sees "prereq → dependent"
         dag.getOrPut(dependentComp, ::mutableSetOf) += prereqComp
       }
     }
@@ -325,12 +359,34 @@ private fun topologicallySortComponentDag(dag: Map<Int, Set<Int>>, componentCoun
   val inDegree = IntArray(componentCount)
   dag.values.flatten().forEach { inDegree[it]++ }
 
+  /**
+   * Why a [PriorityQueue] instead of a FIFO queue like [ArrayDeque]?
+   *
+   * ```
+   * (0)──▶(2)
+   *  │
+   *  └───▶(1)
+   * ```
+   *
+   * After we process component 0, both 1 and 2 are "ready". A plain ArrayDeque would enqueue them
+   * in whatever order the [dag]'s keys are, which isn't deterministic.
+   *
+   * Using a PriorityQueue means we *always* dequeue the lowest id first (1 before 2 in this
+   * example). That keeps generated code consistent across builds.
+   */
   val queue =
-    ArrayDeque<Int>().apply { repeat(componentCount) { id -> if (inDegree[id] == 0) add(id) } }
+    PriorityQueue<Int>().apply {
+      // Seed the work‑queue with every component whose in‑degree is 0.
+      for (id in 0 until componentCount) {
+        if (inDegree[id] == 0) {
+          add(id)
+        }
+      }
+    }
 
   val order = mutableListOf<Int>()
   while (queue.isNotEmpty()) {
-    val c = queue.removeFirst()
+    val c = queue.remove()
     order += c
     for (n in dag[c].orEmpty()) {
       if (--inDegree[n] == 0) {

@@ -15,6 +15,7 @@ import dev.zacsweers.metro.compiler.ir.requireSimpleFunction
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irGetObject
+import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -30,8 +31,8 @@ import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
-import org.jetbrains.kotlin.ir.util.explicitParametersCount
 import org.jetbrains.kotlin.ir.util.getPropertyGetter
+import org.jetbrains.kotlin.ir.util.hasShape
 import org.jetbrains.kotlin.ir.util.kotlinPackageFqn
 import org.jetbrains.kotlin.ir.util.nestedClasses
 import org.jetbrains.kotlin.name.CallableId
@@ -462,7 +463,7 @@ internal class Symbols(
   val stdlibCheckNotNull: IrFunctionSymbol by lazy {
     pluginContext
       .referenceFunctions(CallableId(stdlib.packageFqName, "checkNotNull".asName()))
-      .single { it.owner.explicitParametersCount == 2 }
+      .single { it.owner.parameters.size == 2 }
   }
 
   val emptySet by lazy {
@@ -475,14 +476,14 @@ internal class Symbols(
     pluginContext
       .referenceFunctions(CallableId(stdlibCollections.packageFqName, "setOf".asName()))
       .first {
-        it.owner.valueParameters.size == 1 && it.owner.valueParameters[0].varargElementType == null
+        it.owner.hasShape(regularParameters = 1) && it.owner.parameters[0].varargElementType == null
       }
   }
 
   val buildSetWithCapacity by lazy {
     pluginContext
       .referenceFunctions(CallableId(stdlibCollections.packageFqName, "buildSet".asName()))
-      .first { it.owner.valueParameters.size == 2 }
+      .first { it.owner.hasShape(regularParameters = 2) }
   }
 
   val mutableSetAdd by lazy {
@@ -510,6 +511,27 @@ internal class Symbols(
       .referenceClass(ClassId(metroRuntime.packageFqName, StringNames.ELEMENTS_INTO_SET.asName()))!!
       .constructors
       .single()
+  }
+
+  val deprecatedAnnotationConstructor: IrConstructorSymbol by lazy {
+    pluginContext.referenceClass(StandardClassIds.Annotations.Deprecated)!!.constructors.first {
+      it.owner.isPrimary
+    }
+  }
+
+  val deprecated: IrClassSymbol by lazy {
+    pluginContext.referenceClass(StandardClassIds.Annotations.Deprecated)!!
+  }
+
+  val deprecationLevel: IrClassSymbol by lazy {
+    pluginContext.referenceClass(StandardClassIds.DeprecationLevel)!!
+  }
+
+  val hiddenDeprecationLevel by lazy {
+    deprecationLevel.owner.declarations
+      .filterIsInstance<IrEnumEntry>()
+      .single { it.name.toString() == "HIDDEN" }
+      .symbol
   }
 
   val dependencyGraphAnnotations
@@ -678,18 +700,22 @@ internal class Symbols(
           ClassIds.JAKARTA_PROVIDER_CLASS_ID -> asJakartaProvider
           else -> error("Unexpected non-dagger/jakarta/javax provider $targetClassId")
         }
-      return irInvoke(extensionReceiver = metroProvider, callee = interopFunction).apply {
-        putTypeArgument(0, target.typeKey.type)
-      }
+      return irInvoke(
+        extensionReceiver = metroProvider,
+        callee = interopFunction,
+        typeArgs = listOf(target.typeKey.type),
+      )
     }
 
     override fun IrBuilderWithScope.transformToMetroProvider(
       provider: IrExpression,
       type: IrType,
     ): IrExpression {
-      return irInvoke(extensionReceiver = provider, callee = asMetroProvider).apply {
-        putTypeArgument(0, type)
-      }
+      return irInvoke(
+        extensionReceiver = provider,
+        callee = asMetroProvider,
+        typeArgs = listOf(type),
+      )
     }
 
     val daggerLazy: IrClassSymbol by lazy {

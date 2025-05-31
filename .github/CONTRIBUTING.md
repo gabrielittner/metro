@@ -18,10 +18,15 @@ There are a few primary subprojects to consider.
   - `:integration-tests` — self-explanatory.
   - `:multi-module-test` — A multi-module integration test.
 
-There is a useful `./metrow` helper CLI that can perform a few common commands across the various subprojects. Before submitting a PR, it is useful to run the following:
+There is a useful `./metrow` helper CLI that can perform a few common commands across the various subprojects.
 
-1. `./metrow regen` — This regenerates `.api` files and runs all code formatters.
-2. `./metrow check` — This runs checks across all included Gradle projects (including samples and the Gradle plugin).
+> [!TIP]
+> Before submitting a PR, it is useful to run `regen` and `check`.
+
+* `./metrow format` — Runs all code formatters.
+* `./metrow regen` — Regenerates `.api` files and runs all code formatters.
+* `./metrow check` — Runs checks across all included Gradle projects (including samples and the Gradle plugin).
+* `./metrow publish --local --version x.y.z` — Publishes to maven local with the specified `x.y.z` version (replace this with whatever you want, like `1.0.0-LOCAL01`.)
 
 ## Testing
 
@@ -32,6 +37,12 @@ Tests are spread across a few areas.
 * `gradle-plugin/src/functionalTest` — Integration gradle tests, primarily focused on exercising different incremental compilation scenarios.
 * `samples/` — Some samples have tests! This is useful to assert that these samples work as expected.
     * `integration-tests/` — Integration tests. These should only be functional in nature and not test error cases (error cases won't compile!). Note that new integration tests should usually be written in `compiler-tests`. Some scenarios, such as multi-compilation tests across Gradle, may make more sense to write here.
+
+To publish to a local maven repo, run this:
+
+```bash
+./metrow publish --local --version 1.0.0-LOCAL01 # whatever version you want
+```
 
 ## Compiler Plugin Design
 

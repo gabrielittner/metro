@@ -61,7 +61,9 @@ internal class ContributionHintIrTransformer(
     if (!declaration.visibility.isPublicAPI) return
 
     val contributionScopes =
-      declaration.annotationsIn(symbols.classIds.allContributesAnnotations).mapNotNull {
+      declaration.annotationsIn(symbols.classIds.allContributesAnnotations).mapNotNullTo(
+        mutableSetOf()
+      ) {
         it.scopeOrNull()
       }
     for (contributionScope in contributionScopes) {
@@ -86,8 +88,9 @@ internal class ContributionHintIrTransformer(
 
       val fileNameWithoutExtension =
         sequence {
-            yieldAll(Symbols.FqNames.metroHintsPackage.pathSegments())
-            yieldAll(declaration.classIdOrFail.relativeClassName.pathSegments())
+            val classId = declaration.classIdOrFail
+            yieldAll(classId.packageFqName.pathSegments())
+            yield(classId.joinSimpleNames(separator = "", camelCase = true).shortClassName)
             yield(callableName)
           }
           .joinToString(separator = "") { it.asString().capitalizeUS() }

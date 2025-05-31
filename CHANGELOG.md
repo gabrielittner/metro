@@ -4,17 +4,96 @@ Changelog
 **Unreleased**
 --------------
 
+- **Enhancement:** Check for context parameters in top-level function injection checker.
+- Update to Kotlin `2.2.0`.
+- Update Gradle plugin to target Kotlin language version to `2.0`.
+
+0.3.5
+-----
+
+_2025-05-31_
+
+- **New:** Implement top-level function injection checkers.
+- **Change:** Disallow top-level function injections to be scoped.
+- **Fix:** Support type parameters with `where` bounds.
+- **Fix:** Support injected class type parameters with any bounds.
+- **Fix:** Support generic graph factory interfaces.
+- **Fix:** In the presence of multiple contributing annotations to the same scope, ensure only hint function/file is generated.
+- **Fix:** Improve shading to avoid packaging in stdlib and other dependency classes.
+- **Fix:** Revert [#483](https://github.com/ZacSweers/metro/pull/483) as it broke some cases we haven't been able to debug yet.
+
+Special thanks to [@gabrielittner](https://github.com/gabrielittner) and [@kevinguitar](https://github.com/kevinguitar) for contributing to this release!
+
+0.3.4
+-----
+
+_2025-05-27_
+
+- **Enhancement:** Use a simple numbered (but deterministic) naming for contributed graph classes to avoid long class names.
+- **Enhancement:** Improve graph validation performance by avoiding unnecessary intermediate sorts.
+- **Enhancement:** Move binding validation into graph validation step.
+- **Enhancement:** Avoid unnecessary BFS graph walk in provider field collection.
+- **Fix:** Fix provider field populating missing types that previously seen types dependent on.
+
+Special thanks to [@ChristianKatzmann](https://github.com/ChristianKatzmann) and [@madisp](https://github.com/madisp) for contributing to this release!
+
+0.3.3
+-----
+
+_2025-05-26_
+
+- **Enhancement:** Don't unnecessarily wrap `Provider` graph accessors.
+- **Enhancement:** Allow multiple contributed graphs to the same parent graph.
+- **Fix:** Don't unnecessarily recompute bindings for roots when populating graphs.
+- **Fix:** Better handle generic assisted factory interfaces.
+- **Fix:** Use fully qualified names when generating hint files to avoid collisions.
+- **Fix:** Support provides functions with capitalized names.
+- **Fix:** Prohibit consuming `Provider<Lazy<...>>` graph accessors.
+- [internal] Migrate to new IR `parameters`/`arguments`/`typeArguments` compiler APIs.
+
+Special thanks to [@gabrielittner](https://github.com/gabrielittner) for contributing to this release!
+
+0.3.2
+-----
+
+_2025-05-15_
+
+- **Enhancement**: Optimize supertype lookups in IR.
+- **Fix**: Fix generic members inherited from generic supertypes of contributed graphs.
+- **Fix**: Fix `@ContributedGraphExtension` that extends the same interface as the parent causes a duplicate binding error.
+- **Fix**: Fix contributed binding replacements not being respected in contributed graphs.
+- **Fix**: Fix contributed providers not being visible to N+2+ descendant graphs.
+- **Fix**: Collect bindings from member injectors as well as exposed accessors when determining scoped provider fields.
+- **Fix**: Fix a few `-Xverify-ir` and `-Xverify-ir-visibility` issues + run all tests with these enabled now.
+
+Special thanks to [@bnorm](https://github.com/bnorm), [@gabrielittner](https://github.com/gabrielittner), [@kevinguitar](https://github.com/kevinguitar), and [@JoelWilcox](https://github.com/JoelWilcox) for contributing to this release!
+
+0.3.1
+-----
+
+_2025-05-13_
+
 - **Enhancement**: Rewrite graph resolution using topological sorting to vastly improve performance and simplify generation.
 - **Enhancement**: Return early once an externally-compiled dependency graph is found.
 - **Enhancement**: Simplify multibinding contributor handling in graph resolution by generating synthetic qualifiers for each of them. This allows them to participate in standard graph resolution.
 - **Enhancement**: When there are multiple empty `@Multibinds` errors, report them all at once.
+- **Enhancement**: Avoid unnecessary `StringBuilder` allocations.
 - **Fix**: Don't transform `@Provides` function's to be private if its visibility is already explicitly defined.
 - **Fix**: Fix a comparator infinite loop vector.
 - **Fix**: Fix `@ElementsIntoSet` multibinding contributions triggering a dependency cycle in some situations.
 - **Fix**: Fix assertion error for generated multibinding name hint when using both @Multibinds and @ElementsIntoSet for the same multibinding.
 - **Fix**: Fix contributed graph extensions not inheriting empty declared multibindings.
 - **Fix**: Ensure we report the `@Multibinds` declaration location in errors if one is available.
+- **Fix**: Dedupe overrides by all parameters not just value parameters.
+- **Fix**: Dedupe overrides by signature rather than name when generating contributed graphs.
+- **Fix**: Fix accidentally adding contributed graphs as child elements of parent graphs twice.
+- **Fix**: Fix not deep copying `extensionReceiverParameter` when implementing fake overrides in contributed graphs.
+- **Fix**: Report fully qualified qualifier renderings in diagnostics.
+- **Fix**: Don't generate provider fields for multibinding elements unnecessarily.
 - When debug logging + reports dir is enabled, output a `logTrace.txt` to the reports dir for tracing data.
+- Update to Kotlin `2.1.21`.
+
+Special thanks to [@asapha](https://github.com/asapha), [@gabrielittner](https://github.com/gabrielittner), [@jzbrooks](https://github.com/jzbrooks), and [@JoelWilcox](https://github.com/JoelWilcox) for contributing to this release!
 
 0.3.0
 -----

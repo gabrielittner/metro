@@ -12,6 +12,7 @@ plugins {
   alias(libs.plugins.kotlin.kapt) apply false
   alias(libs.plugins.kotlin.android) apply false
   alias(libs.plugins.android.application) apply false
+  alias(libs.plugins.android.library) apply false
   alias(libs.plugins.kotlin.plugin.compose) apply false
   alias(libs.plugins.ksp) apply false
   id("dev.zacsweers.metro") apply false
@@ -21,8 +22,16 @@ plugins {
   alias(libs.plugins.kotlin.plugin.serialization) apply false
 }
 
+val ktfmtVersion = libs.versions.ktfmt.get()
+
 allprojects {
   apply(plugin = "com.diffplug.spotless")
+  configurations.configureEach {
+    resolutionStrategy.dependencySubstitution {
+      substitute(module("com.facebook:ktfmt:$ktfmtVersion"))
+        .using(module("com.github.facebook:ktfmt:v$ktfmtVersion"))
+    }
+  }
   configure<SpotlessExtension> {
     format("misc") {
       target("*.gradle", "*.md", ".gitignore")

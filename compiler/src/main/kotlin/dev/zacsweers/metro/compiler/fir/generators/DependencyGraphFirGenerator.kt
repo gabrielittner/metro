@@ -5,23 +5,24 @@ package dev.zacsweers.metro.compiler.fir.generators
 import dev.zacsweers.metro.compiler.Symbols
 import dev.zacsweers.metro.compiler.asName
 import dev.zacsweers.metro.compiler.fir.Keys
-import dev.zacsweers.metro.compiler.fir.abstractFunctions
 import dev.zacsweers.metro.compiler.fir.buildSimpleAnnotation
 import dev.zacsweers.metro.compiler.fir.constructType
+import dev.zacsweers.metro.compiler.fir.copyTypeParametersFrom
 import dev.zacsweers.metro.compiler.fir.hasOrigin
 import dev.zacsweers.metro.compiler.fir.isDependencyGraph
 import dev.zacsweers.metro.compiler.fir.isGraphFactory
 import dev.zacsweers.metro.compiler.fir.joinToRender
 import dev.zacsweers.metro.compiler.fir.markAsDeprecatedHidden
 import dev.zacsweers.metro.compiler.fir.metroFirBuiltIns
+import dev.zacsweers.metro.compiler.fir.nestedClasses
 import dev.zacsweers.metro.compiler.fir.predicates
 import dev.zacsweers.metro.compiler.fir.replaceAnnotationsSafe
 import dev.zacsweers.metro.compiler.fir.requireContainingClassSymbol
 import dev.zacsweers.metro.compiler.mapToArray
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
-import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
 import org.jetbrains.kotlin.fir.declarations.utils.isInterface
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
@@ -42,7 +43,6 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.types.constructType
-import org.jetbrains.kotlin.fir.types.withArguments
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
@@ -191,8 +191,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
       val classId = classSymbol.classId.createNestedClassId(Symbols.Names.MetroGraph)
       names += classId.shortClassName
 
-      val hasCompanion =
-        classSymbol.declarationSymbols.any { it is FirClassSymbol<*> && it.isCompanion }
+      val hasCompanion = context.nestedClasses().any { it.isCompanion }
       if (!hasCompanion) {
         // Generate a companion for us to generate these functions on to
         names += SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT
@@ -244,13 +243,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
         log("Generating graph class")
         createNestedClass(owner, name, Keys.MetroGraphDeclaration) {
             superType(owner::constructType)
-            for (typeParam in owner.typeParameterSymbols) {
-              typeParameter(typeParam.name, variance = typeParam.variance) {
-                for (bound in typeParam.resolvedBounds) {
-                  bound(bound.coneType)
-                }
-              }
-            }
+            copyTypeParametersFrom(owner, session)
           }
           .apply { markAsDeprecatedHidden(session) }
           .symbol
@@ -329,7 +322,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
           graphObject(context.owner.requireContainingClassSymbol())
             ?.findCreator(session, "generateConstructors for ${context.owner.classId}", ::log)
         log("Generating graph has creator? $creator")
-        val samFunction = creator?.findSamFunction(session)
+        val samFunction = creator?.classSymbol?.findSamFunction(session)
         createConstructor(
             context.owner,
             Keys.Default,
@@ -342,12 +335,8 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
                 log("Generating SAM param ${valueParameterSymbol.name}")
                 valueParameter(
                   name = valueParameterSymbol.name,
-                  key = Keys.ValueParameter,
-                  typeProvider = {
-                    valueParameterSymbol.resolvedReturnType.withArguments(
-                      it.mapToArray(FirTypeParameterRef::toConeType)
-                    )
-                  },
+                  key = Keys.RegularParameter,
+                  type = valueParameterSymbol.resolvedReturnType,
                 )
               }
             }
@@ -356,7 +345,9 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
             // Copy annotations over. Workaround for https://youtrack.jetbrains.com/issue/KT-74361/
             for ((i, parameter) in samFunction?.valueParameterSymbols.orEmpty().withIndex()) {
               val parameterToUpdate = valueParameters[i]
-              parameterToUpdate.replaceAnnotationsSafe(parameter.annotations)
+              parameterToUpdate.replaceAnnotationsSafe(
+                parameter.resolvedCompilerAnnotationsWithClassIds
+              )
             }
           }
       } else if (context.owner.hasOrigin(Keys.MetroGraphFactoryImplDeclaration)) {
@@ -386,16 +377,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
             owner,
             Keys.MetroGraphCreatorsObjectInvokeDeclaration,
             function.name,
-            returnTypeProvider = {
-              try {
-                // TODO would be nice to resolve this appropriately with the correct type arguments,
-                //  but for now we always know this returns the graph type. FIR checker will check
-                //  this too
-                target.constructType(it.mapToArray(FirTypeParameter::toConeType))
-              } catch (e: Exception) {
-                throw AssertionError("Could not resolve return type for $callableId", e)
-              }
-            },
+            returnType = function.resolvedReturnType,
           ) {
             status {
               isOverride = !owner.isCompanion
@@ -406,12 +388,8 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
               log("Generating parameter ${parameter.name}")
               valueParameter(
                 name = parameter.name,
-                key = Keys.ValueParameter,
-                typeProvider = {
-                  parameter.resolvedReturnType.withArguments(
-                    it.mapToArray(FirTypeParameterRef::toConeType)
-                  )
-                },
+                key = Keys.RegularParameter,
+                type = parameter.resolvedReturnType,
               )
             }
           }
@@ -419,7 +397,9 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
             // Copy annotations over. Workaround for https://youtrack.jetbrains.com/issue/KT-74361/
             for ((i, parameter) in function.valueParameterSymbols.withIndex()) {
               val parameterToUpdate = valueParameters[i]
-              parameterToUpdate.replaceAnnotationsSafe(parameter.annotations)
+              parameterToUpdate.replaceAnnotationsSafe(
+                parameter.resolvedCompilerAnnotationsWithClassIds
+              )
             }
             // Add our marker annotation
             replaceAnnotationsSafe(
@@ -467,7 +447,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
           functions += generatedFunction.symbol
         } else if (creator.isInterface) {
           // It's an interface creator, generate the SAM function
-          val samFunction = creator.findSamFunction(session)
+          val samFunction = creator.classSymbol.findSamFunction(session)
           log("Generating graph creator function $samFunction")
           samFunction?.let { functions += generateSAMFunction(graphObject.classSymbol, it) }
         } else {
@@ -492,7 +472,7 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
       val graphObject = graphObject(graphClass)!!
       val creator =
         graphObject.findCreator(session, "generateFunctions ${context.owner.classId}", ::log)!!
-      val samFunction = creator.findSamFunction(session)
+      val samFunction = creator.classSymbol.findSamFunction(session)
       samFunction?.let { functions += generateSAMFunction(graphObject.classSymbol, it) }
     }
 
@@ -520,13 +500,14 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
 
   @JvmInline
   value class GraphObject(val classSymbol: FirClassSymbol<*>) {
+    @OptIn(DirectDeclarationsAccess::class)
     fun findCreator(session: FirSession, context: String, log: (String) -> Unit): Creator? {
       val creator =
         classSymbol.declarationSymbols
           .filterIsInstance<FirClassSymbol<*>>()
           .onEach {
             log(
-              "Declaration factory candidate ${it.name}. Annotations are ${it.annotations.joinToRender()}"
+              "Declaration factory candidate ${it.name}. Annotations are ${it.resolvedCompilerAnnotationsWithClassIds.joinToRender()}"
             )
           }
           .find { it.isGraphFactory(session) }
@@ -539,17 +520,6 @@ internal class DependencyGraphFirGenerator(session: FirSession) :
     value class Creator(val classSymbol: FirClassSymbol<*>) {
       val isInterface
         get() = classSymbol.isInterface
-
-      fun findSamFunction(session: FirSession): FirFunctionSymbol<*>? {
-        return classSymbol.abstractFunctions(session).let {
-          if (it.size == 1) {
-            it[0]
-          } else {
-            // This is an invalid factory, let the checker notify this diagnostic layer
-            null
-          }
-        }
-      }
     }
   }
 }

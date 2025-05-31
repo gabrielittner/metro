@@ -26,6 +26,9 @@ if ! [[ ${local} ]]; then
 
   # Generate the API docs
   ./gradlew :dokkaGenerate
+
+  cd ..
+  rm -rf ${DIR}
 fi
 
 # Copy in special files that GitHub wants in the project root.

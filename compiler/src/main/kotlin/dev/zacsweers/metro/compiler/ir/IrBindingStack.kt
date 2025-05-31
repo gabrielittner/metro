@@ -13,6 +13,7 @@ import dev.zacsweers.metro.compiler.unsafeLazy
 import dev.zacsweers.metro.compiler.withoutLineBreaks
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrProperty
@@ -25,12 +26,16 @@ import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.propertyIfAccessor
 import org.jetbrains.kotlin.name.FqName
 
-internal interface IrBindingStack : BaseBindingStack<IrClass, IrType, IrTypeKey, Entry> {
+internal interface IrBindingStack :
+  BaseBindingStack<IrClass, IrType, IrTypeKey, Entry, IrBindingStack> {
+
+  override fun copy(): IrBindingStack
+
   class Entry(
     override val contextKey: IrContextualTypeKey,
     override val usage: String?,
     override val graphContext: String?,
-    val declaration: IrDeclarationWithName?,
+    val declaration: IrDeclaration?,
     override val displayTypeKey: IrTypeKey = contextKey.typeKey,
     /**
      * Indicates this entry is informational only and not an actual functional binding that should
@@ -109,7 +114,7 @@ internal interface IrBindingStack : BaseBindingStack<IrClass, IrType, IrTypeKey,
         contextKey: IrContextualTypeKey,
         function: IrFunction?,
         param: IrValueParameter? = null,
-        declaration: IrDeclarationWithName? = param,
+        declaration: IrDeclaration? = param,
         displayTypeKey: IrTypeKey = contextKey.typeKey,
         isSynthetic: Boolean = false,
       ): Entry {
@@ -146,6 +151,27 @@ internal interface IrBindingStack : BaseBindingStack<IrClass, IrType, IrTypeKey,
       }
 
       /*
+      java.lang.CharSequence is injected at
+            [com.slack.circuit.star.ExampleGraph] com.slack.circuit.star.Example1.text2
+      */
+      fun memberInjectedAt(
+        contextKey: IrContextualTypeKey,
+        member: IrDeclarationWithName,
+        displayTypeKey: IrTypeKey = contextKey.typeKey,
+        isSynthetic: Boolean = false,
+      ): Entry {
+        val context = member.parent.kotlinFqName.child(member.name).asString()
+        return Entry(
+          contextKey = contextKey,
+          displayTypeKey = displayTypeKey,
+          usage = "is injected at",
+          graphContext = context,
+          declaration = member,
+          isSynthetic = isSynthetic,
+        )
+      }
+
+      /*
       kotlin.Int is provided at
             [com.slack.circuit.star.ExampleGraph] provideInt(...): kotlin.Int
       */
@@ -171,6 +197,8 @@ internal interface IrBindingStack : BaseBindingStack<IrClass, IrType, IrTypeKey,
   companion object {
     private val EMPTY =
       object : IrBindingStack {
+        override fun copy() = this
+
         override val graph
           get() = throw UnsupportedOperationException()
 
@@ -209,7 +237,8 @@ internal inline fun <
   Type : Any,
   TypeKey : BaseTypeKey<Type, *, *>,
   Entry : BaseBindingStack.BaseEntry<Type, TypeKey, *>,
-> BaseBindingStack<*, Type, TypeKey, Entry>.withEntry(entry: Entry?, block: () -> T): T {
+  Impl : BaseBindingStack<*, Type, TypeKey, Entry, Impl>,
+> Impl.withEntry(entry: Entry?, block: () -> T): T {
   if (entry == null) return block()
   push(entry)
   val result = block()
@@ -221,7 +250,7 @@ internal val IrBindingStack.lastEntryOrGraph
   get() = entries.firstOrNull()?.declaration ?: graph
 
 internal fun Appendable.appendBindingStack(
-  stack: BaseBindingStack<*, *, *, *>,
+  stack: BaseBindingStack<*, *, *, *, *>,
   indent: String = "    ",
   ellipse: Boolean = false,
   short: Boolean = true,
@@ -255,6 +284,15 @@ internal class IrBindingStackImpl(override val graph: IrClass, private val logge
 
   init {
     logger.log("New stack: ${logger.type}")
+  }
+
+  override fun copy(): IrBindingStack {
+    val currentStack = stack
+    return IrBindingStackImpl(graph, logger).apply {
+      for (entry in currentStack) {
+        push(entry)
+      }
+    }
   }
 
   override fun push(entry: Entry) {
