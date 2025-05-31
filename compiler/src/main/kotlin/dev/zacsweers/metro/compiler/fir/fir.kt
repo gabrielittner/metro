@@ -76,7 +76,6 @@ import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.toClassSymbol
 import org.jetbrains.kotlin.fir.scopes.impl.toConeType
-import org.jetbrains.kotlin.fir.scopes.jvm.computeJvmDescriptor
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.scopes.processAllClassifiers
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -208,6 +207,7 @@ internal inline fun Visibility.checkVisibility(
   }
 }
 
+@OptIn(DirectDeclarationsAccess::class)
 internal fun FirClassSymbol<*>.callableDeclarations(
   session: FirSession,
   includeSelf: Boolean,
@@ -250,6 +250,7 @@ internal fun FirClassSymbol<*>.callableDeclarations(
   }
 }
 
+context(context: CheckerContext, diagnosticReporter: DiagnosticReporter)
 internal inline fun FirClass.singleAbstractFunction(
   session: FirSession,
   reporter: DiagnosticReporter,
