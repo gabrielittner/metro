@@ -180,7 +180,7 @@ internal fun <V : Comparable<V>> topologicalSort(
     }
   val componentOrder =
     parentTracer.traceNested("Topo sort component DAG") {
-      topologicallySortComponentDag(componentDag, components.size)
+      topologicallySortComponentDag(componentDag, components)
     }
 
   val sortedKeys =
@@ -326,7 +326,8 @@ private fun <V> buildComponentDag(
  * @see <a href="https://en.wikipedia.org/wiki/Topological_sorting">Topological sorting</a>
  * @see <a href="https://www.interviewcake.com/concept/java/topological-sort">Topological sort</a>
  */
-private fun topologicallySortComponentDag(dag: Map<Int, Set<Int>>, componentCount: Int): List<Int> {
+private fun <V> topologicallySortComponentDag(dag: Map<Int, Set<Int>>, components: List<Component<V>>): List<Int> {
+  val componentCount = components.size
   val inDegree = IntArray(componentCount)
   dag.values.flatten().forEach { inDegree[it]++ }
 
@@ -365,6 +366,19 @@ private fun topologicallySortComponentDag(dag: Map<Int, Set<Int>>, componentCoun
       }
     }
   }
-  check(order.size == componentCount) { "Cycle remained after SCC collapse (should be impossible)" }
+  val orderSet = order.toSet()
+  val missing = components.filter { it.id !in orderSet }
+  val message = """
+   Cycle remained after SCC collapse (should be impossible).
+   Order: $order
+   Size: ${order.size}
+   Expected count: $componentCount
+   Missing: $missing
+   All: $components
+  """.trimIndent()
+  println(message)
+  check(order.size == componentCount) {
+      message
+  }
   return order
 }
