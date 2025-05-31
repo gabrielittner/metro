@@ -4,6 +4,13 @@ Changelog
 **Unreleased**
 --------------
 
+0.3.5
+-----
+
+_2025-05-31_
+
+- **New:** Implement top-level function injection checkers.
+- **Change:** Disallow top-level function injections to be scoped.
 - **Fix:** Support type parameters with `where` bounds.
 - **Fix:** Support injected class type parameters with any bounds.
 - **Fix:** Support generic graph factory interfaces.
@@ -12,6 +19,8 @@ Changelog
 - **Fix:** Revert [#483](https://github.com/ZacSweers/metro/pull/483) as it broke some cases we haven't been able to debug yet.
 - Update to Kotlin `2.2.0`.
 - Update Gradle plugin to target Kotlin language version to `2.0`.
+
+Special thanks to [@gabrielittner](https://github.com/gabrielittner) and [@kevinguitar](https://github.com/kevinguitar) for contributing to this release!
 
 0.3.4
 -----
