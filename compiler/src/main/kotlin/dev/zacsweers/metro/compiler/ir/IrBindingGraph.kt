@@ -371,7 +371,7 @@ internal class IrBindingGraph(
     binding: Binding,
     stack: IrBindingStack,
     roots: Map<IrContextualTypeKey, IrBindingStack.Entry>,
-    adjacency: Map<IrTypeKey, List<IrTypeKey>>,
+    adjacency: Map<IrTypeKey, Set<IrTypeKey>>,
   ) {
     val bindingScope = binding.scope
     if (bindingScope != null) {
@@ -434,18 +434,18 @@ internal class IrBindingGraph(
   private fun buildRouteToRoot(
     key: IrTypeKey,
     roots: Map<IrContextualTypeKey, IrBindingStack.Entry>,
-    adjacency: Map<IrTypeKey, List<IrTypeKey>>,
+    adjacency: Map<IrTypeKey, Set<IrTypeKey>>,
   ): List<IrBindingStack.Entry> {
     // Build who depends on what
-    val dependents = mutableMapOf<IrTypeKey, MutableList<IrTypeKey>>()
+    val dependents = mutableMapOf<IrTypeKey, MutableSet<IrTypeKey>>()
     for ((key, deps) in adjacency) {
       for (dep in deps) {
-        dependents.getOrPut(dep) { mutableListOf() }.add(key)
+        dependents.getOrPut(dep) { mutableSetOf() }.add(key)
       }
     }
 
     // Walk backwards from this binding to find a root
-    val visited = mutableListOf<IrTypeKey>()
+    val visited = mutableSetOf<IrTypeKey>()
 
     fun walkToRoot(current: IrTypeKey, path: List<IrTypeKey>): List<IrTypeKey>? {
       if (current in visited) return null // Cycle
