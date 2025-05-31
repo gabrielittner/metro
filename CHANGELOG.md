@@ -13,10 +13,13 @@ Changelog
 _2025-05-27_
 
 - **Enhancement:** Use a simple numbered (but deterministic) naming for contributed graph classes to avoid long class names.
+<<<<<<< HEAD
 - **Enhancement:** Improve graph validation performance by avoiding unnecessary intermediate sorts.
 - **Enhancement:** Move binding validation into graph validation step.
 - **Enhancement:** Avoid unnecessary BFS graph walk in provider field collection.
 - **Fix:** Fix provider field populating missing types that previously seen types dependent on.
+=======
+>>>>>>> a87b34d (Revert "Avoid intermediate sorts (#483)")
 
 Special thanks to [@ChristianKatzmann](https://github.com/ChristianKatzmann) and [@madisp](https://github.com/madisp) for contributing to this release!
 
