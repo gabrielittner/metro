@@ -4,6 +4,12 @@ Changelog
 **Unreleased**
 --------------
 
+- **Fix:** Support type parameters with `where` bounds.
+- **Fix:** Support injected class type parameters with any bounds.
+- **Fix:** Support generic graph factory interfaces.
+- **Fix:** In the presence of multiple contributing annotations to the same scope, ensure only hint function/file is generated.
+- **Fix:** Improve shading to avoid packaging in stdlib and other dependency classes.
+- **Fix:** Revert [#483](https://github.com/ZacSweers/metro/pull/483) as it broke some cases we haven't been able to debug yet.
 - Update to Kotlin `2.2.0`.
 - Update Gradle plugin to target Kotlin language version to `2.0`.
 
