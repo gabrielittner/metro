@@ -238,8 +238,11 @@ internal data class Component<V>(val id: Int, val vertices: MutableList<V> = mut
 /**
  * Computes the strongly connected components (SCCs) of a directed graph using Tarjan's algorithm.
  *
+ * NOTE: For performance and determinism, this implementation assumes [this] adjacency is already
+ * sorted (both keys and each set of values).
+ *
  * @param this A map representing the directed graph where the keys are vertices of type [V] and the
- *   values are lists of vertices to which each key vertex has outgoing edges.
+ *   values are sets of vertices to which each key vertex has outgoing edges.
  * @return A pair where the first element is a list of components (each containing an ID and its
  *   associated vertices) and the second element is a map that associates each vertex with the ID of
  *   its component.
@@ -276,7 +279,7 @@ internal fun <V : Comparable<V>> Map<V, Set<V>>.computeStronglyConnectedComponen
     stack += v
     onStack += v
 
-    for (w in this[v].orEmpty().sorted()) {
+    for (w in this[v].orEmpty()) {
       if (w !in indexMap) {
         // Successor w has not yet been visited; recurse on it
         strongConnect(w)
@@ -307,7 +310,7 @@ internal fun <V : Comparable<V>> Map<V, Set<V>>.computeStronglyConnectedComponen
   }
 
   // Sorted for determinism
-  for (v in keys.sorted()) {
+  for (v in keys) {
     if (v !in indexMap) {
       strongConnect(v)
     }
