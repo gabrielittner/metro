@@ -19,6 +19,7 @@ package dev.zacsweers.metro.compiler.graph
 import dev.zacsweers.metro.compiler.tracing.Tracer
 import dev.zacsweers.metro.compiler.tracing.traceNested
 import java.util.PriorityQueue
+import java.util.TreeMap
 import java.util.TreeSet
 
 /**
@@ -71,12 +72,16 @@ internal fun <T> List<T>.isTopologicallySorted(sourceToTarget: (T) -> Iterable<T
   return true
 }
 
-internal fun <T> Iterable<T>.buildFullAdjacency(
+internal fun <T : Comparable<T>> Iterable<T>.buildFullAdjacency(
   sourceToTarget: (T) -> Iterable<T>,
   onMissing: (source: T, missing: T) -> Unit,
 ): Map<T, Set<T>> {
   val set = toSet()
-  val adjacency = mutableMapOf<T, TreeSet<T>>()
+  /**
+   * Sort our map keys and list values here for better performance later (avoiding needing to
+   * defensively sort in [computeStronglyConnectedComponents]).
+   */
+  val adjacency = TreeMap<T, TreeSet<T>>()
 
   for (key in set) {
     val dependencies = adjacency.getOrPut(key, ::TreeSet)
@@ -91,6 +96,7 @@ internal fun <T> Iterable<T>.buildFullAdjacency(
       dependencies += targetKey
     }
   }
+
   return adjacency
 }
 
