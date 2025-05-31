@@ -4,6 +4,7 @@ Changelog
 **Unreleased**
 --------------
 
+- **Enhancement:** Check for context parameters in top-level function injection checker.
 - Update to Kotlin `2.2.0`.
 - Update Gradle plugin to target Kotlin language version to `2.0`.
 
